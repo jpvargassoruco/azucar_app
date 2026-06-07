@@ -1591,6 +1591,15 @@
             <button class="protocol-btn" data-fasting="20" data-eating="4" onclick="selectProtocol(this)">20/4 (Guerrero)</button>
           </div>
 
+          <!-- Fasting custom start time -->
+          <div class="form-group" style="max-width: 340px; margin: 0 auto 24px;" id="fastingTimeGroup">
+            <label class="form-label" style="text-align: center; color: var(--text-secondary); margin-bottom: 8px;">Hora de Inicio Personalizada</label>
+            <div style="display: flex; gap: 10px;">
+              <input type="date" id="fastingStartDate" class="form-input" style="padding: 10px 14px; font-size: 0.85rem;">
+              <input type="time" id="fastingStartTime" class="form-input" style="padding: 10px 14px; font-size: 0.85rem;">
+            </div>
+          </div>
+
           <!-- Control triggers -->
           <div style="display: flex; gap: 12px; justify-content: center;">
             <button class="btn btn-primary" id="btnStartFast" onclick="startFasting()" style="min-width: 160px;">🚀 Iniciar Ayuno</button>
@@ -1997,10 +2006,13 @@
         $('#userNameDisplay').textContent = user.name;
         $('#userBanner').style.display = 'flex';
         
-        // Set date defaults in metrics form
+        // Set date defaults in metrics and fasting forms
         const now = new Date();
         $('#metricDate').value = getTodayStr();
         $('#metricTime').value = `${padZero(now.getHours())}:${padZero(now.getMinutes())}`;
+        
+        $('#fastingStartDate').value = getTodayStr();
+        $('#fastingStartTime').value = `${padZero(now.getHours())}:${padZero(now.getMinutes())}`;
         
         // Populate config panel
         populateConfigPanel(user);
@@ -2501,7 +2513,15 @@
     }
 
     async function startFasting() {
-      const startTime = new Date();
+      const dateVal = $('#fastingStartDate').value;
+      const timeVal = $('#fastingStartTime').value;
+      
+      if (!dateVal || !timeVal) {
+        showToast('Por favor, selecciona una fecha y hora de inicio válida', 'warning');
+        return;
+      }
+      
+      const startTime = new Date(`${dateVal}T${timeVal}:00`);
       const protocolStr = `${fastingState.protocol.fasting}:${fastingState.protocol.eating}`;
       
       try {
@@ -2518,6 +2538,7 @@
         
         $('#btnStartFast').classList.add('hidden');
         $('#btnStopFast').classList.remove('hidden');
+        $('#fastingTimeGroup').classList.add('hidden');
         
         const end = new Date(fastingState.startTime.getTime() + fastingState.protocol.fasting * 3600000);
         $('#fastStartTime').textContent = `${padZero(fastingState.startTime.getHours())}:${padZero(fastingState.startTime.getMinutes())}`;
@@ -2528,13 +2549,14 @@
         fastingState.intervalId = setInterval(updateFastingTimer, 1000);
         showToast(`Ayuno iniciado (${protocolStr})`, 'success');
       } catch (err) {
-        showToast('Error al iniciar ayuno', 'danger');
+        showToast('Error al iniciar ayuno: ' + err.message, 'danger');
       }
     }
 
     function resumeFasting() {
       $('#btnStartFast').classList.add('hidden');
       $('#btnStopFast').classList.remove('hidden');
+      $('#fastingTimeGroup').classList.add('hidden');
 
       const start = fastingState.startTime;
       const end = new Date(start.getTime() + fastingState.protocol.fasting * 3600000);
@@ -2574,7 +2596,7 @@
         showToast('Ayuno completado. ¡Buen trabajo!', 'success');
         resetFastingUI();
       } catch (err) {
-        showToast('Error al finalizar el ayuno', 'danger');
+        showToast('Error al finalizar el ayuno: ' + err.message, 'danger');
       }
     }
 
@@ -2586,6 +2608,12 @@
       
       $('#btnStartFast').classList.remove('hidden');
       $('#btnStopFast').classList.add('hidden');
+      $('#fastingTimeGroup').classList.remove('hidden');
+      
+      const now = new Date();
+      $('#fastingStartDate').value = getTodayStr();
+      $('#fastingStartTime').value = `${padZero(now.getHours())}:${padZero(now.getMinutes())}`;
+      
       $('#fastingTimerValue').textContent = '00:00:00';
       $('#fastingTimerLabel').textContent = 'Sin iniciar';
       $('#fastStartTime').textContent = '--:--';
