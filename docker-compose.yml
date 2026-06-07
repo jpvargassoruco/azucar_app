@@ -195,7 +195,7 @@ services:
 
   # ─── HERMES HEALTH AI AGENT ───
   hermes:
-    image: ghcr.io/nousresearch/hermes-agent:latest
+    image: nousresearch/hermes-agent:latest
     container_name: azucar-hermes
     restart: unless-stopped
     environment:
