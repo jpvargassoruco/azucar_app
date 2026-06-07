@@ -1,0 +1,2 @@
+# Check active alerts and reminders every minute
+* * * * * python -u /app/jobs/check_reminders.py

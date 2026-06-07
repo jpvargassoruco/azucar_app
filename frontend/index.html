@@ -1,0 +1,2956 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Aplicación personal de gestión de salud para diabetes tipo 2 - Monitoreo de glucosa, ayuno intermitente y hábitos saludables">
+  <meta name="theme-color" content="#818cf8">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>Azúcar — Control de Diabetes T2</title>
+  <link rel="manifest" href="/manifest.json">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    /* ===== RESET & BASE ===== */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg-primary: #0a0e1a;
+      --bg-secondary: #111827;
+      --bg-card: rgba(17, 24, 39, 0.7);
+      --bg-card-hover: rgba(30, 41, 59, 0.8);
+      --bg-glass: rgba(255, 255, 255, 0.03);
+      --border-glass: rgba(255, 255, 255, 0.08);
+      --border-accent: rgba(99, 102, 241, 0.3);
+
+      --text-primary: #f1f5f9;
+      --text-secondary: #94a3b8;
+      --text-muted: #64748b;
+
+      --accent-indigo: #818cf8;
+      --accent-violet: #a78bfa;
+      --accent-emerald: #34d399;
+      --accent-amber: #fbbf24;
+      --accent-rose: #fb7185;
+      --accent-cyan: #22d3ee;
+      --accent-orange: #fb923c;
+
+      --gradient-hero: linear-gradient(135deg, #818cf8 0%, #a78bfa 50%, #f0abfc 100%);
+      --gradient-danger: linear-gradient(135deg, #ef4444 0%, #f97316 100%);
+      --gradient-safe: linear-gradient(135deg, #10b981 0%, #34d399 100%);
+      --gradient-warning: linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%);
+      --gradient-glass: linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.01) 100%);
+
+      --shadow-sm: 0 1px 3px rgba(0,0,0,0.3);
+      --shadow-md: 0 4px 14px rgba(0,0,0,0.4);
+      --shadow-lg: 0 10px 40px rgba(0,0,0,0.5);
+      --shadow-glow-indigo: 0 0 30px rgba(129, 140, 248, 0.15);
+      --shadow-glow-emerald: 0 0 30px rgba(52, 211, 153, 0.15);
+      --shadow-glow-rose: 0 0 30px rgba(251, 113, 133, 0.2);
+
+      --radius-sm: 8px;
+      --radius-md: 12px;
+      --radius-lg: 16px;
+      --radius-xl: 20px;
+      --radius-full: 9999px;
+
+      --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+      --transition-base: 250ms cubic-bezier(0.4, 0, 0.2, 1);
+      --transition-slow: 400ms cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      min-height: 100vh;
+      line-height: 1.6;
+      overflow-x: hidden;
+    }
+
+    /* ===== AMBIENT BACKGROUND ===== */
+    body::before {
+      content: '';
+      position: fixed;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background:
+        radial-gradient(ellipse at 20% 50%, rgba(129, 140, 248, 0.06) 0%, transparent 50%),
+        radial-gradient(ellipse at 80% 20%, rgba(167, 139, 250, 0.05) 0%, transparent 50%),
+        radial-gradient(ellipse at 50% 80%, rgba(52, 211, 153, 0.04) 0%, transparent 50%);
+      z-index: 0;
+      pointer-events: none;
+      animation: ambientShift 20s ease-in-out infinite alternate;
+    }
+
+    @keyframes ambientShift {
+      0% { transform: translate(0, 0) rotate(0deg); }
+      100% { transform: translate(-2%, -1%) rotate(1deg); }
+    }
+
+    /* ===== SCROLLBAR ===== */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(129, 140, 248, 0.3); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(129, 140, 248, 0.5); }
+
+    /* ===== LAYOUT ===== */
+    .app-container {
+      position: relative;
+      z-index: 1;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px 24px 60px;
+    }
+
+    /* ===== HEADER ===== */
+    .app-header {
+      text-align: center;
+      padding: 40px 0 24px;
+      position: relative;
+    }
+
+    .app-header .logo-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 56px;
+      height: 56px;
+      background: var(--gradient-hero);
+      border-radius: var(--radius-lg);
+      font-size: 26px;
+      margin-bottom: 16px;
+      box-shadow: 0 8px 32px rgba(129, 140, 248, 0.3);
+      animation: logoPulse 3s ease-in-out infinite;
+    }
+
+    @keyframes logoPulse {
+      0%, 100% { transform: scale(1); box-shadow: 0 8px 32px rgba(129, 140, 248, 0.3); }
+      50% { transform: scale(1.05); box-shadow: 0 12px 40px rgba(129, 140, 248, 0.4); }
+    }
+
+    .app-header h1 {
+      font-size: 2rem;
+      font-weight: 800;
+      background: var(--gradient-hero);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      letter-spacing: -0.5px;
+    }
+
+    .app-header .subtitle {
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+      margin-top: 6px;
+      font-weight: 400;
+    }
+
+    .current-date {
+      display: inline-block;
+      margin-top: 12px;
+      padding: 6px 16px;
+      background: var(--bg-glass);
+      border: 1px solid var(--border-glass);
+      border-radius: var(--radius-full);
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    /* ===== AUTHENTICATION OVERLAY ===== */
+    .auth-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(10, 14, 26, 0.96);
+      backdrop-filter: blur(15px);
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      transition: opacity 0.4s ease;
+    }
+    .auth-overlay.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+    .auth-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-glass);
+      border-radius: var(--radius-xl);
+      padding: 35px;
+      width: 100%;
+      max-width: 420px;
+      text-align: center;
+      box-shadow: var(--shadow-lg);
+    }
+    .auth-card h2 {
+      margin-top: 15px;
+      font-size: 1.6rem;
+      font-weight: 800;
+      background: var(--gradient-hero);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .auth-card p {
+      color: var(--text-secondary);
+      font-size: 0.85rem;
+      margin-bottom: 25px;
+    }
+    .auth-toggle {
+      margin-top: 20px;
+      font-size: 0.82rem;
+      color: var(--text-muted);
+    }
+    .auth-toggle a {
+      color: var(--accent-indigo);
+      text-decoration: none;
+      font-weight: 600;
+      margin-left: 5px;
+    }
+    .auth-toggle a:hover {
+      text-decoration: underline;
+    }
+    .user-banner {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      margin-top: 14px;
+      font-size: 0.82rem;
+      color: var(--text-secondary);
+    }
+
+    /* ===== NAVIGATION TABS ===== */
+    .nav-tabs {
+      display: flex;
+      gap: 6px;
+      padding: 6px;
+      background: var(--bg-card);
+      backdrop-filter: blur(20px);
+      border: 1px solid var(--border-glass);
+      border-radius: var(--radius-xl);
+      margin-bottom: 28px;
+      overflow-x: auto;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+    }
+    .nav-tabs::-webkit-scrollbar { display: none; }
+
+    .nav-tab {
+      flex: 1;
+      min-width: 120px;
+      padding: 12px 16px;
+      border: none;
+      background: transparent;
+      color: var(--text-muted);
+      font-family: inherit;
+      font-size: 0.8rem;
+      font-weight: 600;
+      border-radius: var(--radius-lg);
+      cursor: pointer;
+      transition: all var(--transition-base);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      white-space: nowrap;
+      position: relative;
+    }
+
+    .nav-tab:hover {
+      color: var(--text-secondary);
+      background: rgba(255,255,255,0.03);
+    }
+
+    .nav-tab.active {
+      background: rgba(129, 140, 248, 0.12);
+      color: var(--accent-indigo);
+      box-shadow: var(--shadow-glow-indigo);
+    }
+
+    .nav-tab .tab-icon { font-size: 1.1rem; }
+
+    /* ===== TAB SECTIONS ===== */
+    .tab-section {
+      display: none;
+      animation: fadeIn 0.3s ease;
+    }
+
+    .tab-section.active { display: block; }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ===== CARD ===== */
+    .card {
+      background: var(--bg-card);
+      backdrop-filter: blur(20px);
+      border: 1px solid var(--border-glass);
+      border-radius: var(--radius-xl);
+      padding: 28px;
+      margin-bottom: 20px;
+      transition: all var(--transition-base);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+    }
+
+    .card:hover {
+      border-color: var(--border-accent);
+      box-shadow: var(--shadow-glow-indigo);
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .card-header .icon-badge {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 40px;
+      height: 40px;
+      border-radius: var(--radius-md);
+      font-size: 1.2rem;
+      flex-shrink: 0;
+    }
+
+    .card-header h2 {
+      font-size: 1.1rem;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+    }
+
+    .card-header p {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    /* ===== GLUCOSE ALERT PANEL ===== */
+    .glucose-display {
+      text-align: center;
+      padding: 32px 20px;
+      border-radius: var(--radius-lg);
+      margin-bottom: 24px;
+      position: relative;
+      transition: all var(--transition-slow);
+    }
+
+    .glucose-display.crisis {
+      background: linear-gradient(135deg, rgba(239, 68, 68, 0.12) 0%, rgba(249, 115, 22, 0.08) 100%);
+      border: 1px solid rgba(239, 68, 68, 0.25);
+      animation: crisisFlash 1.5s ease-in-out infinite;
+    }
+
+    @keyframes crisisFlash {
+      0%, 100% { border-color: rgba(239, 68, 68, 0.25); box-shadow: 0 0 20px rgba(239, 68, 68, 0.1); }
+      50% { border-color: rgba(249, 115, 22, 0.5); box-shadow: 0 0 40px rgba(239, 68, 68, 0.2); }
+    }
+
+    .glucose-display.warning {
+      background: linear-gradient(135deg, rgba(245, 158, 11, 0.1) 0%, rgba(251, 191, 36, 0.05) 100%);
+      border: 1px solid rgba(245, 158, 11, 0.2);
+    }
+
+    .glucose-display.safe {
+      background: linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(52, 211, 153, 0.05) 100%);
+      border: 1px solid rgba(16, 185, 129, 0.2);
+    }
+
+    .glucose-display.optimal {
+      background: linear-gradient(135deg, rgba(34, 211, 238, 0.1) 0%, rgba(129, 140, 248, 0.05) 100%);
+      border: 1px solid rgba(34, 211, 238, 0.2);
+    }
+
+    .glucose-display.idle {
+      background: var(--bg-glass);
+      border: 1px solid var(--border-glass);
+    }
+
+    .glucose-value {
+      font-size: 4rem;
+      font-weight: 900;
+      line-height: 1;
+      margin-bottom: 4px;
+      letter-spacing: -2px;
+      transition: color var(--transition-base);
+    }
+
+    .glucose-value.crisis { color: #ef4444; }
+    .glucose-value.warning { color: #fbbf24; }
+    .glucose-value.safe { color: #34d399; }
+    .glucose-value.optimal { color: #22d3ee; }
+    .glucose-value.idle { color: var(--text-muted); }
+
+    .glucose-unit {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    .glucose-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 12px;
+      padding: 6px 16px;
+      border-radius: var(--radius-full);
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+
+    .glucose-status.crisis {
+      background: rgba(239, 68, 68, 0.15);
+      color: #fca5a5;
+    }
+
+    .glucose-status.warning {
+      background: rgba(245, 158, 11, 0.15);
+      color: #fde68a;
+    }
+
+    .glucose-status.safe {
+      background: rgba(16, 185, 129, 0.15);
+      color: #6ee7b7;
+    }
+
+    .glucose-status.optimal {
+      background: rgba(34, 211, 238, 0.15);
+      color: #67e8f9;
+    }
+
+    .glucose-status.idle {
+      background: var(--bg-glass);
+      color: var(--text-muted);
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+
+    .status-dot.crisis { background: #ef4444; animation: dotPulse 1s infinite; }
+    .status-dot.warning { background: #fbbf24; }
+    .status-dot.safe { background: #34d399; }
+    .status-dot.optimal { background: #22d3ee; }
+    .status-dot.idle { background: var(--text-muted); }
+
+    @keyframes dotPulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+
+    .glucose-input-row {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    .glucose-input-row input {
+      width: 180px;
+      padding: 14px 20px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid var(--border-glass);
+      border-radius: var(--radius-md);
+      color: var(--text-primary);
+      font-family: inherit;
+      font-size: 1.1rem;
+      font-weight: 600;
+      text-align: center;
+      outline: none;
+      transition: all var(--transition-base);
+    }
+
+    .glucose-input-row input:focus {
+      border-color: var(--accent-indigo);
+      box-shadow: 0 0 0 3px rgba(129, 140, 248, 0.15);
+    }
+
+    /* ===== ALERT RECOMMENDATIONS ===== */
+    .alert-recs {
+      margin-top: 20px;
+      display: none;
+    }
+
+    .alert-recs.show { display: block; animation: fadeIn 0.4s ease; }
+
+    .alert-rec-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 14px 18px;
+      background: rgba(239, 68, 68, 0.06);
+      border: 1px solid rgba(239, 68, 68, 0.12);
+      border-radius: var(--radius-md);
+      margin-bottom: 8px;
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+      line-height: 1.5;
+    }
+
+    .alert-rec-item .rec-icon {
+      font-size: 1.2rem;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    /* ===== GAUGE RING ===== */
+    .gauge-container {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 8px;
+    }
+
+    .gauge-svg {
+      transform: rotate(-90deg);
+    }
+
+    .gauge-track {
+      fill: none;
+      stroke: rgba(255,255,255,0.05);
+      stroke-width: 8;
+    }
+
+    .gauge-fill {
+      fill: none;
+      stroke-width: 8;
+      stroke-linecap: round;
+      transition: stroke-dashoffset 0.8s cubic-bezier(0.4, 0, 0.2, 1), stroke 0.4s ease;
+    }
+
+    /* ===== BUTTONS ===== */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 12px 24px;
+      border: none;
+      border-radius: var(--radius-md);
+      font-family: inherit;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all var(--transition-base);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .btn::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: rgba(255,255,255,0);
+      transition: background var(--transition-fast);
+    }
+
+    .btn:hover::after { background: rgba(255,255,255,0.05); }
+    .btn:active { transform: scale(0.97); }
+
+    .btn-primary {
+      background: var(--gradient-hero);
+      color: white;
+      box-shadow: 0 4px 16px rgba(129, 140, 248, 0.3);
+    }
+    .btn-primary:hover { box-shadow: 0 6px 24px rgba(129, 140, 248, 0.4); }
+
+    .btn-success {
+      background: var(--gradient-safe);
+      color: #064e3b;
+      box-shadow: 0 4px 16px rgba(52, 211, 153, 0.3);
+    }
+
+    .btn-danger {
+      background: var(--gradient-danger);
+      color: white;
+      box-shadow: 0 4px 16px rgba(239, 68, 68, 0.3);
+    }
+
+    .btn-ghost {
+      background: rgba(255,255,255,0.05);
+      color: var(--text-secondary);
+      border: 1px solid var(--border-glass);
+    }
+    .btn-ghost:hover { background: rgba(255,255,255,0.08); color: var(--text-primary); }
+
+    .btn-sm {
+      padding: 8px 16px;
+      font-size: 0.78rem;
+    }
+
+    /* ===== FORM ELEMENTS ===== */
+    .form-group {
+      margin-bottom: 16px;
+      text-align: left;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .form-input, .form-select {
+      width: 100%;
+      padding: 12px 16px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid var(--border-glass);
+      border-radius: var(--radius-md);
+      color: var(--text-primary);
+      font-family: inherit;
+      font-size: 0.9rem;
+      outline: none;
+      transition: all var(--transition-base);
+    }
+
+    .form-input:focus, .form-select:focus {
+      border-color: var(--accent-indigo);
+      box-shadow: 0 0 0 3px rgba(129, 140, 248, 0.12);
+    }
+
+    .form-select {
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2394a3b8' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 14px center;
+      padding-right: 36px;
+      cursor: pointer;
+    }
+
+    .form-select option {
+      background: var(--bg-secondary);
+      color: var(--text-primary);
+    }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .radio-group {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .radio-pill {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .radio-pill input[type="radio"] {
+      display: none;
+    }
+
+    .radio-pill label {
+      padding: 8px 18px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid var(--border-glass);
+      border-radius: var(--radius-full);
+      font-size: 0.8rem;
+      font-weight: 500;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all var(--transition-base);
+    }
+
+    .radio-pill input[type="radio"]:checked + label {
+      background: rgba(129, 140, 248, 0.12);
+      border-color: rgba(129, 140, 248, 0.3);
+      color: var(--accent-indigo);
+    }
+
+    /* ===== METRICS TABLE ===== */
+    .metrics-table-wrap {
+      overflow-x: auto;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border-glass);
+    }
+
+    .metrics-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.82rem;
+    }
+
+    .metrics-table thead th {
+      padding: 12px 16px;
+      background: rgba(255,255,255,0.03);
+      color: var(--text-muted);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      font-size: 0.72rem;
+      text-align: left;
+      border-bottom: 1px solid var(--border-glass);
+    }
+
+    .metrics-table tbody td {
+      padding: 12px 16px;
+      border-bottom: 1px solid rgba(255,255,255,0.03);
+      color: var(--text-secondary);
+    }
+
+    .metrics-table tbody tr:hover {
+      background: rgba(255,255,255,0.02);
+    }
+
+    .glucose-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 10px;
+      border-radius: var(--radius-full);
+      font-weight: 600;
+      font-size: 0.78rem;
+    }
+
+    .glucose-badge.crisis { background: rgba(239,68,68,0.12); color: #fca5a5; }
+    .glucose-badge.warning { background: rgba(245,158,11,0.12); color: #fde68a; }
+    .glucose-badge.safe { background: rgba(16,185,129,0.12); color: #6ee7b7; }
+    .glucose-badge.optimal { background: rgba(34,211,238,0.12); color: #67e8f9; }
+
+    .avg-display {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+
+    .avg-card {
+      flex: 1;
+      min-width: 140px;
+      padding: 18px;
+      background: var(--bg-glass);
+      border: 1px solid var(--border-glass);
+      border-radius: var(--radius-md);
+      text-align: center;
+    }
+
+    .avg-card .avg-label {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+
+    .avg-card .avg-value {
+      font-size: 1.8rem;
+      font-weight: 800;
+      letter-spacing: -1px;
+    }
+
+    .delete-btn {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 1rem;
+      padding: 4px;
+      border-radius: 4px;
+      transition: all var(--transition-fast);
+    }
+    .delete-btn:hover { color: var(--accent-rose); background: rgba(251,113,133,0.1); }
+
+    /* ===== FASTING TIMER ===== */
+    .fasting-timer-display {
+      text-align: center;
+      padding: 40px 20px;
+      position: relative;
+    }
+
+    .timer-ring-container {
+      position: relative;
+      display: inline-block;
+      margin-bottom: 24px;
+    }
+
+    .timer-ring-container .timer-text-overlay {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
+    }
+
+    .timer-value {
+      font-size: 2.5rem;
+      font-weight: 800;
+      color: var(--text-primary);
+      letter-spacing: -1px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .timer-label-small {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    .fasting-protocol-select {
+      display: flex;
+      gap: 8px;
+      justify-content: center;
+      margin-bottom: 24px;
+      flex-wrap: wrap;
+    }
+
+    .protocol-btn {
+      padding: 10px 20px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid var(--border-glass);
+      border-radius: var(--radius-full);
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all var(--transition-base);
+    }
+
+    .protocol-btn.active {
+      background: rgba(129, 140, 248, 0.15);
+      border-color: rgba(129, 140, 248, 0.4);
+      color: var(--accent-indigo);
+    }
+
+    /* ===== ALARMS CARD ===== */
+    .alarms-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .alarm-card {
+      background: var(--bg-glass);
+      border: 1px solid var(--border-glass);
+      border-radius: var(--radius-lg);
+      padding: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      transition: all var(--transition-base);
+    }
+
+    .alarm-card.active-alarm {
+      border-color: rgba(129, 140, 248, 0.3);
+      background: rgba(129, 140, 248, 0.03);
+    }
+
+    .alarm-card.ringing {
+      animation: alarmRinging 0.5s infinite alternate;
+    }
+
+    @keyframes alarmRinging {
+      0% { border-color: rgba(251, 113, 133, 0.3); background: rgba(251, 113, 133, 0.05); }
+      100% { border-color: rgba(251, 113, 133, 0.8); background: rgba(251, 113, 133, 0.2); }
+    }
+
+    .alarm-info-side {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .alarm-icon-box {
+      font-size: 1.5rem;
+    }
+
+    .alarm-title-small {
+      font-size: 0.9rem;
+      font-weight: 700;
+    }
+
+    .alarm-desc-small {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    .alarm-timer-side {
+      text-align: right;
+    }
+
+    .alarm-timer-value {
+      font-size: 1.3rem;
+      font-weight: 800;
+      font-variant-numeric: tabular-nums;
+      color: var(--text-muted);
+    }
+
+    /* ===== HABITS CHECKLIST ===== */
+    .habits-progress-wrap {
+      margin-bottom: 24px;
+    }
+
+    .habits-progress-bar {
+      height: 6px;
+      background: rgba(255,255,255,0.05);
+      border-radius: var(--radius-full);
+      overflow: hidden;
+      margin-top: 8px;
+    }
+
+    .habits-progress-fill {
+      height: 100%;
+      width: 0%;
+      background: var(--gradient-safe);
+      border-radius: var(--radius-full);
+      transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .habits-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .habit-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 20px;
+      background: var(--bg-glass);
+      border: 1px solid var(--border-glass);
+      border-radius: var(--radius-lg);
+      cursor: pointer;
+      transition: all var(--transition-base);
+      user-select: none;
+    }
+
+    .habit-item:hover {
+      border-color: rgba(129, 140, 248, 0.2);
+      background: rgba(255,255,255,0.05);
+    }
+
+    .habit-item.completed {
+      background: rgba(52, 211, 153, 0.04);
+      border-color: rgba(52, 211, 153, 0.15);
+    }
+
+    .habit-content-side {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .habit-checkbox {
+      width: 22px;
+      height: 22px;
+      border: 2px solid var(--border-glass);
+      border-radius: var(--radius-sm);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--accent-emerald);
+      font-weight: 700;
+      font-size: 0.8rem;
+      transition: all var(--transition-fast);
+    }
+
+    .habit-item.completed .habit-checkbox {
+      border-color: var(--accent-emerald);
+      background: rgba(52, 211, 153, 0.1);
+    }
+
+    .habit-text {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+      transition: all var(--transition-fast);
+    }
+
+    .habit-item.completed .habit-text {
+      color: var(--text-muted);
+      text-decoration: line-through;
+    }
+
+    .habit-badge {
+      font-size: 0.7rem;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: var(--radius-full);
+      background: rgba(255,255,255,0.04);
+      color: var(--text-muted);
+    }
+    .habit-item.completed .habit-badge {
+      background: rgba(52, 211, 153, 0.1);
+      color: var(--accent-emerald);
+    }
+
+    /* ===== CHART LAYOUT ===== */
+    .chart-container {
+      height: 160px;
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      padding: 20px 10px 10px;
+      border-bottom: 1px solid var(--border-glass);
+      gap: 8px;
+    }
+
+    .chart-bar-wrap {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .chart-bar {
+      width: 100%;
+      max-width: 40px;
+      border-top-left-radius: 4px;
+      border-top-right-radius: 4px;
+      background: var(--accent-indigo);
+      transition: height 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .chart-bar-value {
+      font-size: 0.7rem;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .chart-bar-label {
+      font-size: 0.6rem;
+      color: var(--text-muted);
+      text-align: center;
+      white-space: nowrap;
+    }
+
+    /* ===== MEALS GALLERY ===== */
+    .meals-gallery {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 16px;
+      margin-top: 15px;
+    }
+    .meal-card {
+      background: var(--bg-glass);
+      border: 1px solid var(--border-glass);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      transition: all var(--transition-base);
+    }
+    .meal-card:hover {
+      border-color: var(--border-accent);
+      transform: translateY(-2px);
+    }
+    .meal-img {
+      width: 100%;
+      height: 180px;
+      object-fit: cover;
+      background: #111827;
+    }
+    .meal-info {
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      flex-grow: 1;
+    }
+    .meal-date {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+    .meal-title {
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+    .meal-macros {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 6px;
+      background: rgba(255, 255, 255, 0.02);
+      padding: 8px;
+      border-radius: var(--radius-sm);
+      text-align: center;
+      font-size: 0.75rem;
+    }
+    .macro-val {
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+    .macro-label {
+      font-size: 0.65rem;
+      color: var(--text-muted);
+    }
+    .meal-impact {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 0.72rem;
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: var(--radius-full);
+      width: fit-content;
+    }
+    .meal-impact.bajo { background: rgba(16, 185, 129, 0.12); color: #34d399; }
+    .meal-impact.moderado { background: rgba(245, 158, 11, 0.12); color: #fbbf24; }
+    .meal-impact.alto { background: rgba(239, 68, 68, 0.12); color: #fb7185; }
+    .meal-rec {
+      font-size: 0.78rem;
+      color: var(--text-secondary);
+      line-height: 1.4;
+      border-left: 2px solid var(--accent-indigo);
+      padding-left: 8px;
+      margin-top: 4px;
+      text-align: left;
+    }
+
+    /* ===== AI CHAT CONTAINER ===== */
+    .chat-messages {
+      flex-grow: 1;
+      overflow-y: auto;
+      padding: 10px;
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--border-glass);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-bottom: 15px;
+    }
+    .chat-msg {
+      max-width: 80%;
+      padding: 12px 16px;
+      border-radius: var(--radius-lg);
+      font-size: 0.85rem;
+      line-height: 1.5;
+      word-break: break-word;
+      text-align: left;
+    }
+    .chat-msg.bot {
+      background: var(--bg-glass);
+      color: var(--text-primary);
+      border: 1px solid var(--border-glass);
+      align-self: flex-start;
+      border-bottom-left-radius: 4px;
+    }
+    .chat-msg.user {
+      background: var(--gradient-hero);
+      color: white;
+      align-self: flex-end;
+      border-bottom-right-radius: 4px;
+      box-shadow: 0 4px 12px rgba(129, 140, 248, 0.2);
+    }
+    .chat-input-row {
+      display: flex;
+      gap: 10px;
+      flex-shrink: 0;
+    }
+    .chat-input-row input {
+      flex-grow: 1;
+    }
+
+    /* ===== TOAST NOTIFICATION ===== */
+    .toast-container {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      z-index: 1100;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      pointer-events: none;
+    }
+
+    .toast {
+      pointer-events: auto;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: var(--bg-card);
+      backdrop-filter: blur(20px);
+      border: 1px solid var(--border-glass);
+      padding: 14px 20px;
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-md);
+      color: var(--text-primary);
+      font-size: 0.85rem;
+      min-width: 280px;
+      max-width: 380px;
+      animation: toastIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      cursor: pointer;
+    }
+
+    @keyframes toastIn {
+      from { transform: translateY(20px) scale(0.9); opacity: 0; }
+      to { transform: translateY(0) scale(1); opacity: 1; }
+    }
+
+    .toast.success { border-color: rgba(52, 211, 153, 0.3); }
+    .toast.warning { border-color: rgba(251, 191, 36, 0.3); }
+    .toast.danger { border-color: rgba(251, 113, 133, 0.4); }
+
+    .toast-icon { font-size: 1.1rem; }
+    .toast-msg { font-weight: 500; }
+
+    .hidden { display: none !important; }
+
+    /* ===== RESPONSIVE ===== */
+    @media (max-width: 768px) {
+      .form-row { grid-template-columns: 1fr; }
+      .app-header { padding: 24px 0 16px; }
+      .app-header h1 { font-size: 1.6rem; }
+      .nav-tabs { border-radius: var(--radius-lg); }
+      .nav-tab { min-width: 90px; padding: 10px 12px; font-size: 0.72rem; }
+      .card { padding: 20px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- AUTHENTICATION OVERLAY -->
+  <div id="authOverlay" class="auth-overlay">
+    <div class="auth-card">
+      <div class="logo-icon">🩺</div>
+      <h2>Azúcar Control</h2>
+      <p id="authSubtitle">Plataforma Privada de Gestión de Diabetes</p>
+      
+      <form id="authForm" onsubmit="handleAuthSubmit(event)">
+        <div class="form-group" id="nameGroup" style="display: none;">
+          <label class="form-label">Nombre Completo</label>
+          <input type="text" id="authName" class="form-input" placeholder="Ej. Juan Pérez">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Correo Electrónico</label>
+          <input type="email" id="authEmail" class="form-input" required placeholder="tu@correo.com">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Contraseña</label>
+          <input type="password" id="authPassword" class="form-input" required placeholder="••••••••">
+        </div>
+        
+        <button type="submit" id="authSubmitBtn" class="btn btn-primary" style="width: 100%; margin-top: 8px;">
+          Iniciar Sesión
+        </button>
+      </form>
+      
+      <p class="auth-toggle">
+        <span id="authToggleText">¿No tienes una cuenta?</span>
+        <a href="#" onclick="toggleAuthMode(event)" id="authToggleLink">Regístrate</a>
+      </p>
+    </div>
+  </div>
+
+  <div class="app-container">
+
+    <!-- HEADER -->
+    <header class="app-header">
+      <div class="logo-icon">🩺</div>
+      <h1>Azúcar Control</h1>
+      <p class="subtitle">Gestión Integral de Diabetes Tipo 2 & Optimización de Estilo de Vida</p>
+      <div class="current-date" id="currentDate">--</div>
+      
+      <!-- User profile banner -->
+      <div class="user-banner" id="userBanner" style="display: none;">
+        <span>Bienvenido, <strong id="userNameDisplay">Usuario</strong></span>
+        <button class="btn btn-ghost btn-sm" onclick="handleLogout()" style="padding: 4px 10px; font-size: 0.7rem;">Cerrar Sesión</button>
+        <button class="btn btn-ghost btn-sm" id="btnEnablePush" onclick="requestPushNotifications()" style="padding: 4px 10px; font-size: 0.7rem; color: var(--accent-emerald);">🔔 Activar Alertas</button>
+      </div>
+    </header>
+
+    <!-- NAVIGATION TABS -->
+    <nav class="nav-tabs">
+      <button class="nav-tab active" data-tab="alert">
+        <span class="tab-icon">🚨</span>Alerta
+      </button>
+      <button class="nav-tab" data-tab="registry">
+        <span class="tab-icon">📊</span>Registro
+      </button>
+      <button class="nav-tab" data-tab="meals">
+        <span class="tab-icon">🍽️</span>Comidas
+      </button>
+      <button class="nav-tab" data-tab="fasting">
+        <span class="tab-icon">⏳</span>Ayuno
+      </button>
+      <button class="nav-tab" data-tab="alarms">
+        <span class="tab-icon">⏰</span>Alarmas
+      </button>
+      <button class="nav-tab" data-tab="habits">
+        <span class="tab-icon">✓</span>Hábitos
+      </button>
+      <button class="nav-tab" data-tab="ai">
+        <span class="tab-icon">🤖</span>Hermes IA
+      </button>
+    </nav>
+
+    <!-- SECTIONS -->
+
+    <!-- 1. ALERT PANEL SECTION -->
+    <section id="sectionAlert" class="tab-section active">
+      <div class="card">
+        <div class="card-header">
+          <div class="icon-badge" style="background: rgba(251, 113, 133, 0.1); color: var(--accent-rose);">🚨</div>
+          <div>
+            <h2>Panel de Emergencia Glucémica</h2>
+            <p>Monitoreo rápido de estado médico según la última lectura</p>
+          </div>
+        </div>
+
+        <!-- Visual display gauge -->
+        <div class="glucose-display idle" id="glucoseDisplay">
+          <div class="gauge-container">
+            <svg class="gauge-svg" width="160" height="160" viewBox="0 0 160 160">
+              <circle class="gauge-track" cx="80" cy="80" r="68"></circle>
+              <circle class="gauge-fill" id="gaugeFill" cx="80" cy="80" r="68" stroke-dasharray="427.26" stroke-dashoffset="427.26"></circle>
+            </svg>
+          </div>
+          <div class="glucose-value idle" id="glucoseValueDisplay">--</div>
+          <div class="glucose-unit">mg/dL</div>
+          
+          <div class="glucose-status idle" id="glucoseStatusBadge">
+            <span class="status-dot idle"></span>
+            <span id="glucoseStatusText">Sin mediciones</span>
+          </div>
+        </div>
+
+        <!-- Input control -->
+        <div class="glucose-input-row">
+          <input type="number" id="glucoseInput" placeholder="Glucosa actual" min="30" max="600">
+          <button class="btn btn-primary" onclick="updateGlucoseAlert()">Verificar Nivel</button>
+        </div>
+
+        <!-- Crisis warning list -->
+        <div class="alert-recs" id="alertRecs">
+          <div class="alert-rec-item">
+            <span class="rec-icon">💧</span>
+            <div>
+              <strong>Hidratación Urgente:</strong> Bebe agua pura de inmediato. La deshidratación concentra la glucosa en la sangre.
+            </div>
+          </div>
+          <div class="alert-rec-item">
+            <span class="rec-icon">🚫</span>
+            <div>
+              <strong>Evitar Ejercicio Intenso:</strong> No realices entrenamientos ahora. Sin suficiente insulina, el ejercicio intenso disparará más la glucosa.
+            </div>
+          </div>
+          <div class="alert-rec-item">
+            <span class="rec-icon">💊</span>
+            <div>
+              <strong>Medicación / Insulina:</strong> Revisa si has tomado tu dosis de Metformina programada o sigue tu plan médico de insulina.
+            </div>
+          </div>
+          <div class="alert-rec-item">
+            <span class="rec-icon">🩺</span>
+            <div>
+              <strong>Monitorear Síntomas:</strong> Si experimentas náuseas, vómitos, aliento a frutas o confusión, busca atención médica de inmediato.
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2. REGISTRY SECTION -->
+    <section id="sectionRegistry" class="tab-section">
+      <div class="avg-display">
+        <div class="avg-card">
+          <div class="avg-label">Último Nivel</div>
+          <div class="avg-value" id="lastReading">--</div>
+        </div>
+        <div class="avg-card">
+          <div class="avg-label">Promedio</div>
+          <div class="avg-value" id="avgToday">--</div>
+        </div>
+        <div class="avg-card">
+          <div class="avg-label">Mediciones</div>
+          <div class="avg-value" id="countToday">0</div>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <!-- New entry form -->
+        <div class="card">
+          <div class="card-header">
+            <div class="icon-badge" style="background: rgba(52, 211, 153, 0.1); color: var(--accent-emerald);">📝</div>
+            <div>
+              <h2>Registrar Medida</h2>
+              <p>Añade una nueva lectura de glucosa a tu historial</p>
+            </div>
+          </div>
+          <form onsubmit="addMetricEntry(event)">
+            <div class="form-group">
+              <label class="form-label">Nivel de Glucosa (mg/dL)</label>
+              <input type="number" id="metricGlucose" class="form-input" required min="30" max="600" placeholder="Ej. 110">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Condición de la lectura</label>
+              <div class="radio-group">
+                <div class="radio-pill">
+                  <input type="radio" id="condAyunas" name="metricCondition" value="ayunas" checked>
+                  <label for="condAyunas">🌙 Ayunas</label>
+                </div>
+                <div class="radio-pill">
+                  <input type="radio" id="condPost" name="metricCondition" value="postprandial">
+                  <label for="condPost">🍽️ Postprandial</label>
+                </div>
+                <div class="radio-pill">
+                  <input type="radio" id="condOtro" name="metricCondition" value="otro">
+                  <label for="condOtro">⚙️ Otro</label>
+                </div>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">Fecha</label>
+                <input type="date" id="metricDate" class="form-input" required>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Hora</label>
+                <input type="time" id="metricTime" class="form-input" required>
+              </div>
+            </div>
+            <button type="submit" class="btn btn-success" style="width: 100%; margin-top: 8px;">
+              💾 Guardar Registro
+            </button>
+          </form>
+        </div>
+
+        <!-- Trend Chart -->
+        <div class="card">
+          <div class="card-header">
+            <div class="icon-badge" style="background: rgba(34, 211, 238, 0.1); color: var(--accent-cyan);">📈</div>
+            <div>
+              <h2>Tendencia de Glucosa</h2>
+              <p>Últimos 7 registros guardados en la plataforma</p>
+            </div>
+          </div>
+          <div class="chart-container" id="dashboardChart">
+            <!-- Dynamic elements -->
+          </div>
+        </div>
+      </div>
+
+      <!-- History Table -->
+      <div class="card">
+        <div class="card-header" style="justify-content: space-between;">
+          <div style="display:flex; align-items:center; gap:12px;">
+            <div class="icon-badge" style="background: rgba(129, 140, 248, 0.1); color: var(--accent-indigo);">📋</div>
+            <div>
+              <h2>Historial Completo</h2>
+              <p>Tabla con todas tus mediciones registradas</p>
+            </div>
+          </div>
+          <button class="btn btn-ghost btn-sm" onclick="clearAllMetrics()" style="color: var(--accent-rose);">Limpiar Todo</button>
+        </div>
+        <div id="metricsTableContainer">
+          <div class="empty-state" id="metricsEmpty" style="text-align: center; padding: 40px 20px;">
+            <div style="font-size: 2.5rem; margin-bottom: 12px;">📭</div>
+            <p style="color: var(--text-muted);">No hay registros disponibles en tu cuenta.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3. MEALS SECTION -->
+    <section id="sectionMeals" class="tab-section">
+      <div class="form-row">
+        <!-- Image Upload Form -->
+        <div class="card">
+          <div class="card-header">
+            <div class="icon-badge" style="background: rgba(251, 146, 60, 0.1); color: var(--accent-orange);">📸</div>
+            <div>
+              <h2>Análisis de Comidas con IA</h2>
+              <p>Sube o captura una foto para estimar nutrientes e impacto glucémico</p>
+            </div>
+          </div>
+          <form id="mealForm" onsubmit="handleMealUpload(event)">
+            <div class="form-group">
+              <label class="form-label">Foto del Plato</label>
+              <input type="file" id="mealPhoto" accept="image/*" capture="environment" class="form-input" required style="padding: 10px;">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Notas Adicionales (Opcional)</label>
+              <input type="text" id="mealNotes" class="form-input" placeholder="Ej. Desayuno antes del ayuno">
+            </div>
+            <button type="submit" id="btnUploadMeal" class="btn btn-primary" style="width: 100%; margin-top: 8px;">
+              🔍 Analizar con Visión IA
+            </button>
+          </form>
+        </div>
+
+        <!-- Help/Guidelines Card -->
+        <div class="card">
+          <div class="card-header">
+            <div class="icon-badge" style="background: rgba(167, 139, 250, 0.1); color: var(--accent-violet);">💡</div>
+            <div>
+              <h2>Instrucciones del Analizador</h2>
+              <p>Para obtener el mejor desglose nutricional por IA</p>
+            </div>
+          </div>
+          <div style="font-size: 0.82rem; color: var(--text-secondary); text-align: left; display: flex; flex-direction: column; gap: 10px;">
+            <p>✔️ Asegúrate de que haya buena iluminación sobre tu plato.</p>
+            <p>✔️ Intenta enfocar desde arriba para capturar todas las porciones.</p>
+            <p>✔️ La IA desglosará estimaciones de calorías, proteínas, carbohidratos, grasas y fibra.</p>
+            <p>⚠️ Las fotos originales se borran después del análisis, almacenando únicamente una miniatura comprimida para resguardar tu privacidad y espacio.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Historical Meals Feed -->
+      <div class="card">
+        <div class="card-header">
+          <div class="icon-badge" style="background: rgba(251, 146, 60, 0.1); color: var(--accent-orange);">📅</div>
+          <div>
+            <h2>Historial de Nutrición</h2>
+            <p>Registro fotográfico y nutricional de tus comidas</p>
+          </div>
+        </div>
+        <div id="mealsGallery" class="meals-gallery">
+          <!-- Dynamic meals cards will be rendered here -->
+        </div>
+      </div>
+    </section>
+
+    <!-- 4. FASTING TIMER SECTION -->
+    <section id="sectionFasting" class="tab-section">
+      <div class="card">
+        <div class="card-header">
+          <div class="icon-badge" style="background: rgba(167, 139, 250, 0.1); color: var(--accent-violet);">⏳</div>
+          <div>
+            <h2>Temporizador de Ayuno Intermitente</h2>
+            <p>Controla tus ventanas de ayuno para mejorar la sensibilidad a la insulina</p>
+          </div>
+        </div>
+
+        <div class="fasting-timer-display">
+          <div class="timer-ring-container">
+            <svg width="200" height="200" viewBox="0 0 200 200">
+              <circle cx="100" cy="100" r="85" fill="none" stroke="rgba(255,255,255,0.03)" stroke-width="10"></circle>
+              <circle id="fastingGaugeFill" cx="100" cy="100" r="85" fill="none" stroke="var(--accent-indigo)" stroke-width="10" stroke-linecap="round" stroke-dasharray="534.07" stroke-dashoffset="534.07" style="transform: rotate(-90deg); transform-origin: center; transition: stroke-dashoffset 0.8s ease, stroke 0.4s ease;"></circle>
+            </svg>
+            <div class="timer-text-overlay">
+              <div class="timer-value" id="fastingTimerValue">00:00:00</div>
+              <div class="timer-label-small" id="fastingTimerLabel">Sin iniciar</div>
+            </div>
+          </div>
+
+          <!-- Fasting window indicators -->
+          <div class="avg-display" style="max-width: 500px; margin: 0 auto 28px;">
+            <div class="avg-card">
+              <div class="avg-label">Inicio</div>
+              <div class="avg-value" id="fastStartTime" style="font-size:1.3rem;">--:--</div>
+            </div>
+            <div class="avg-card">
+              <div class="avg-label">Fin Estimado</div>
+              <div class="avg-value" id="fastEndTime" style="font-size:1.3rem;">--:--</div>
+            </div>
+            <div class="avg-card">
+              <div class="avg-label">Ventana Alimenticia</div>
+              <div class="avg-value" id="fastEatWindow" style="font-size:1.3rem;">8h</div>
+            </div>
+          </div>
+
+          <!-- Protocol Buttons -->
+          <div class="fasting-protocol-select">
+            <button class="protocol-btn active" data-fasting="16" data-eating="8" onclick="selectProtocol(this)">16/8 (Método Leangains)</button>
+            <button class="protocol-btn" data-fasting="12" data-eating="12" onclick="selectProtocol(this)">12/12 (Circadiano)</button>
+            <button class="protocol-btn" data-fasting="18" data-eating="6" onclick="selectProtocol(this)">18/6 (Intermedio)</button>
+            <button class="protocol-btn" data-fasting="20" data-eating="4" onclick="selectProtocol(this)">20/4 (Guerrero)</button>
+          </div>
+
+          <!-- Control triggers -->
+          <div style="display: flex; gap: 12px; justify-content: center;">
+            <button class="btn btn-primary" id="btnStartFast" onclick="startFasting()" style="min-width: 160px;">🚀 Iniciar Ayuno</button>
+            <button class="btn btn-danger hidden" id="btnStopFast" onclick="stopFasting()" style="min-width: 160px;">🛑 Finalizar Ayuno</button>
+            <button class="btn btn-ghost" onclick="resetFasting()">Reiniciar</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 5. ALARMS SECTION -->
+    <section id="sectionAlarms" class="tab-section">
+      <div class="card">
+        <div class="card-header">
+          <div class="icon-badge" style="background: rgba(22, 211, 238, 0.1); color: var(--accent-cyan);">⏰</div>
+          <div>
+            <h2>Recordatorios Inteligentes</h2>
+            <p>Configura alarmas locales y notificaciones automáticas en tu dispositivo</p>
+          </div>
+        </div>
+
+        <div class="alarms-list">
+          <!-- Postprandial Alarm -->
+          <div class="alarm-card" id="alarmPostprandial">
+            <div class="alarm-info-side">
+              <div class="alarm-icon-box">🩸</div>
+              <div>
+                <div class="alarm-title-small">Glucosa Postprandial</div>
+                <div class="alarm-desc-small">Te recuerda medir tu glucosa 2 horas después de comer</div>
+              </div>
+            </div>
+            <div class="alarm-timer-side">
+              <div class="alarm-timer-value" id="postprandialTimerDisplay">--:--</div>
+              <button class="btn btn-primary btn-sm" id="btnAteNow" onclick="startPostprandialAlarm()" style="margin-top:6px;">🍽️ Comí Ahora</button>
+              <button class="btn btn-danger btn-sm hidden" id="btnCancelPP" onclick="cancelPostprandialAlarm()" style="margin-top:6px;">Cancelar</button>
+            </div>
+          </div>
+
+          <!-- Hydration Alarm -->
+          <div class="alarm-card" id="alarmHydration">
+            <div class="alarm-info-side">
+              <div class="alarm-icon-box">💧</div>
+              <div>
+                <div class="alarm-title-small">Alarma de Hidratación</div>
+                <div class="alarm-desc-small">Te recuerda beber un vaso de agua cada 2 horas</div>
+              </div>
+            </div>
+            <div class="alarm-timer-side">
+              <div class="alarm-timer-value" id="hydrationTimerDisplay">--:--</div>
+              <button class="btn btn-success btn-sm" id="btnStartHydration" onclick="startHydrationAlarm()" style="margin-top:6px;">Activar</button>
+              <button class="btn btn-danger btn-sm hidden" id="btnCancelHydration" onclick="cancelHydrationAlarm()" style="margin-top:6px;">Apagar</button>
+            </div>
+          </div>
+
+          <!-- Metformin Alarm -->
+          <div class="alarm-card" id="alarmMetformin">
+            <div class="alarm-info-side">
+              <div class="alarm-icon-box">💊</div>
+              <div>
+                <div class="alarm-title-small">Recordatorio de Metformina</div>
+                <div class="alarm-desc-small">Alerta programada diaria para tomar la medicación</div>
+              </div>
+            </div>
+            <div class="alarm-timer-side">
+              <div class="alarm-timer-value" id="metforminTimerDisplay">--:--</div>
+              <div style="display:flex; gap:6px; margin-top:6px; align-items:center;">
+                <input type="time" id="metforminTime" class="form-input" style="padding:6px; width:90px;" value="08:00">
+                <button class="btn btn-primary btn-sm" id="btnSetMetformin" onclick="setMetforminAlarm()">Guardar</button>
+                <button class="btn btn-danger btn-sm hidden" id="btnCancelMetformin" onclick="cancelMetforminAlarm()">Quitar</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 6. HABITS CHECKLIST SECTION -->
+    <section id="sectionHabits" class="tab-section">
+      <div class="card">
+        <div class="card-header">
+          <div class="icon-badge" style="background: rgba(52, 211, 153, 0.1); color: var(--accent-emerald);">✓</div>
+          <div>
+            <h2>Rutina de Estilo de Vida Saludable</h2>
+            <p>Hábitos esenciales para la reducción de glucosa y ganancia de testosterona</p>
+          </div>
+        </div>
+
+        <div class="habits-progress-wrap">
+          <div style="display:flex; justify-content:space-between; font-size:0.85rem; font-weight:700;">
+            <span>Progreso del Día</span>
+            <span id="habitsProgressPct" style="color:var(--accent-emerald)">0%</span>
+          </div>
+          <div class="habits-progress-bar">
+            <div class="habits-progress-fill" id="habitsProgressFill"></div>
+          </div>
+        </div>
+
+        <div class="habits-list">
+          <div class="habit-item" data-habit="ejercicio" onclick="toggleHabit(this)">
+            <div class="habit-content-side">
+              <div class="habit-checkbox"></div>
+              <span class="habit-text">30-45 min de Ejercicio de Fuerza / HIIT</span>
+            </div>
+            <span class="habit-badge">Testosterona ⚡</span>
+          </div>
+
+          <div class="habit-item" data-habit="agua" onclick="toggleHabit(this)">
+            <div class="habit-content-side">
+              <div class="habit-checkbox"></div>
+              <span class="habit-text">Beber 3 a 4 litros de Agua pura</span>
+            </div>
+            <span class="habit-badge">Glucosa 💧</span>
+          </div>
+
+          <div class="habit-item" data-habit="ayuno" onclick="toggleHabit(this)">
+            <div class="habit-content-side">
+              <div class="habit-checkbox"></div>
+              <span class="habit-text">Cumplir protocolo de Ayuno Intermitente</span>
+            </div>
+            <span class="habit-badge">Insulina ⏳</span>
+          </div>
+
+          <div class="habit-item" data-habit="medicacion" onclick="toggleHabit(this)">
+            <div class="habit-content-side">
+              <div class="habit-checkbox"></div>
+              <span class="habit-text">Tomar Metformina / Medicación en hora</span>
+            </div>
+            <span class="habit-badge">Control 💊</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 7. AI ASSISTANT SECTION -->
+    <section id="sectionAi" class="tab-section">
+      <div class="card" style="height: 580px; display: flex; flex-direction: column; padding: 24px;">
+        <div class="card-header" style="margin-bottom: 15px; flex-shrink: 0;">
+          <div class="icon-badge" style="background: rgba(167, 139, 250, 0.1); color: var(--accent-violet);">🤖</div>
+          <div>
+            <h2>Asistente Virtual Hermes</h2>
+            <p>Consejos personalizados en base a tus últimas mediciones y hábitos</p>
+          </div>
+        </div>
+        
+        <!-- Messages box -->
+        <div id="chatMessages" class="chat-messages">
+          <div class="chat-msg bot">
+            ¡Hola! Soy Hermes, tu asesor virtual de salud. Veo que estamos monitoreando tu diabetes tipo 2 y optimizando tu estilo de vida. ¿En qué te puedo ayudar hoy?
+          </div>
+        </div>
+        
+        <!-- Input row -->
+        <form id="chatForm" onsubmit="handleChatSubmit(event)" class="chat-input-row">
+          <input type="text" id="chatInput" class="form-input" placeholder="Pregúntame sobre tu dieta, ayuno o glucosa..." required autocomplete="off">
+          <button type="submit" id="btnSendChat" class="btn btn-primary" style="padding: 12px 20px;">
+            Enviar
+          </button>
+        </form>
+      </div>
+    </section>
+
+  </div>
+
+  <!-- TOAST CONTAINER -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <script>
+    // ===================================================================
+    //  AZÚCAR CONTROL — PWA Cloud Application Logic
+    // ===================================================================
+
+    // ===== UTILITY FUNCTIONS =====
+    const $ = (sel) => document.querySelector(sel);
+    const $$ = (sel) => document.querySelectorAll(sel);
+
+    function getTodayStr() {
+      const d = new Date();
+      return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+    }
+
+    function formatDate(dateStr) {
+      // Handle date formatting without timezone offsets
+      const parts = dateStr.split('T')[0].split('-');
+      const d = new Date(parts[0], parts[1] - 1, parts[2]);
+      return d.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
+    }
+
+    function formatTime(dateTimeStr) {
+      const d = new Date(dateTimeStr);
+      let h = d.getHours();
+      const m = String(d.getMinutes()).padStart(2, '0');
+      const ampm = h >= 12 ? 'PM' : 'AM';
+      h = h % 12 || 12;
+      return `${h}:${m} ${ampm}`;
+    }
+
+    function padZero(n) { return String(n).padStart(2, '0'); }
+
+    function showToast(msg, type = 'info') {
+      const container = $('#toastContainer');
+      const icons = { info: 'ℹ️', warning: '⚠️', danger: '🚨', success: '✅' };
+      const toast = document.createElement('div');
+      toast.className = `toast ${type}`;
+      toast.innerHTML = `<span class="toast-icon">${icons[type]}</span><span class="toast-msg">${msg}</span>`;
+      container.appendChild(toast);
+      toast.onclick = () => toast.remove();
+      setTimeout(() => {
+        toast.style.transition = '0.3s';
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateX(100%)';
+        setTimeout(() => toast.remove(), 300);
+      }, 5000);
+    }
+
+    // Play Beep Alert
+    function playAlarmSound() {
+      try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const notes = [880, 1046.5, 880, 1046.5];
+        notes.forEach((freq, i) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.type = 'sine';
+          osc.frequency.value = freq;
+          gain.gain.value = 0.15;
+          osc.start(ctx.currentTime + i * 0.25);
+          osc.stop(ctx.currentTime + i * 0.25 + 0.2);
+          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + i * 0.25 + 0.2);
+        });
+      } catch (e) { /* silent fallback */ }
+    }
+
+    // ===== DATE HEADER =====
+    function updateDateHeader() {
+      const now = new Date();
+      const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+      $('#currentDate').textContent = now.toLocaleDateString('es-ES', options);
+    }
+    updateDateHeader();
+
+    // ===== AUTHENTICATION JWT UTILITIES =====
+    let isRegisterMode = false;
+
+    function toggleAuthMode(e) {
+      e.preventDefault();
+      isRegisterMode = !isRegisterMode;
+      if (isRegisterMode) {
+        $('#authSubtitle').textContent = 'Crear cuenta en la plataforma';
+        $('#nameGroup').style.display = 'block';
+        $('#authSubmitBtn').textContent = 'Crear Cuenta';
+        $('#authToggleText').textContent = '¿Ya tienes una cuenta?';
+        $('#authToggleLink').textContent = 'Inicia Sesión';
+      } else {
+        $('#authSubtitle').textContent = 'Plataforma Privada de Gestión de Diabetes';
+        $('#nameGroup').style.display = 'none';
+        $('#authSubmitBtn').textContent = 'Iniciar Sesión';
+        $('#authToggleText').textContent = '¿No tienes una cuenta?';
+        $('#authToggleLink').textContent = 'Regístrate';
+      }
+    }
+
+    async function handleAuthSubmit(e) {
+      e.preventDefault();
+      const email = $('#authEmail').value;
+      const password = $('#authPassword').value;
+      const name = $('#authName').value;
+      
+      const btn = $('#authSubmitBtn');
+      btn.disabled = true;
+      btn.textContent = 'Procesando...';
+      
+      try {
+        if (isRegisterMode) {
+          // Register flow
+          const res = await fetch('/api/v1/auth/register', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password, name })
+          });
+          if (!res.ok) {
+            const errData = await res.json();
+            throw new Error(errData.detail || 'Fallo en registro');
+          }
+          showToast('Cuenta creada con éxito. Iniciando sesión...', 'success');
+        }
+        
+        // Login flow
+        const formData = new URLSearchParams();
+        formData.append('username', email);
+        formData.append('password', password);
+        
+        const res = await fetch('/api/v1/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: formData
+        });
+        
+        if (!res.ok) {
+          const errData = await res.json();
+          throw new Error(errData.detail || 'Fallo en login');
+        }
+        
+        const data = await res.json();
+        localStorage.setItem('azucar_token', data.access_token);
+        $('#authOverlay').classList.add('hidden');
+        showToast('Acceso autorizado', 'success');
+        initializeSession();
+      } catch (err) {
+        showToast(err.message, 'danger');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = isRegisterMode ? 'Crear Cuenta' : 'Iniciar Sesión';
+      }
+    }
+
+    function handleLogout() {
+      localStorage.removeItem('azucar_token');
+      // Reset UI states
+      $('#authOverlay').classList.remove('hidden');
+      $('#userBanner').style.display = 'none';
+      showToast('Sesión cerrada correctamente', 'info');
+    }
+
+    // Generic Fetch Wrapper
+    async function apiFetch(path, options = {}) {
+      const token = localStorage.getItem('azucar_token');
+      if (!token) {
+        handleLogout();
+        throw new Error('No token found');
+      }
+      
+      const headers = options.headers || {};
+      if (!(options.body instanceof FormData)) {
+        headers['Content-Type'] = 'application/json';
+      }
+      headers['Authorization'] = `Bearer ${token}`;
+      
+      const response = await fetch(path, { ...options, headers });
+      
+      if (response.status === 401) {
+        handleLogout();
+        throw new Error('Sesión expirada');
+      }
+      
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.detail || 'API error');
+      }
+      
+      if (response.status === 204) return null;
+      return await response.json();
+    }
+
+    // ===== MAIN INIT SESSION =====
+    async function initializeSession() {
+      try {
+        const user = await apiFetch('/api/v1/auth/me');
+        $('#userNameDisplay').textContent = user.name;
+        $('#userBanner').style.display = 'flex';
+        
+        // Set date defaults in metrics form
+        const now = new Date();
+        $('#metricDate').value = getTodayStr();
+        $('#metricTime').value = `${padZero(now.getHours())}:${padZero(now.getMinutes())}`;
+        
+        // Trigger loads
+        await loadGlucoseData();
+        await loadMealsData();
+        await loadFastingState();
+        await loadHabits();
+        await loadAlarms();
+      } catch (err) {
+        console.error("Initialization failed", err);
+      }
+    }
+
+    // ===== NAVIGATION TABS =====
+    $$('.nav-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        $$('.nav-tab').forEach(t => t.classList.remove('active'));
+        $$('.tab-section').forEach(s => s.classList.remove('active'));
+        tab.classList.add('active');
+        $(`#section${capitalize(tab.dataset.tab)}`).classList.add('active');
+      });
+    });
+
+    function capitalize(str) {
+      return str.charAt(0).toUpperCase() + str.slice(1);
+    }
+
+    // ===== 1. GLUCOSE ALERT PANEL =====
+    function getGlucoseZone(val) {
+      if (val >= 250) return 'crisis';
+      if (val >= 180) return 'warning';
+      if (val >= 130) return 'safe';
+      return 'optimal';
+    }
+
+    function getZoneLabel(zone) {
+      const labels = {
+        crisis: '🔴 ZONA DE CRISIS — Actuar Ahora',
+        warning: '🟡 Glucosa Elevada — Precaución',
+        safe: '🟢 Zona Segura — Estable',
+        optimal: '🔵 Zona Óptima — Excelente'
+      };
+      return labels[zone];
+    }
+
+    function updateGlucoseAlert() {
+      const val = parseInt($('#glucoseInput').value);
+      if (!val || val < 30 || val > 600) {
+        showToast('Ingresa un valor de glucosa válido (30-600 mg/dL)', 'warning');
+        return;
+      }
+
+      const zone = getGlucoseZone(val);
+      const display = $('#glucoseDisplay');
+      const valueEl = $('#glucoseValueDisplay');
+      const statusBadge = $('#glucoseStatusBadge');
+      const statusDot = statusBadge.querySelector('.status-dot');
+      const statusText = $('#glucoseStatusText');
+      const alertRecs = $('#alertRecs');
+
+      // Update display
+      display.className = `glucose-display ${zone}`;
+      valueEl.className = `glucose-value ${zone}`;
+      valueEl.textContent = val;
+      statusBadge.className = `glucose-status ${zone}`;
+      statusDot.className = `status-dot ${zone}`;
+      statusText.textContent = getZoneLabel(zone);
+
+      // Gauge
+      const maxVal = 400;
+      const pct = Math.min(val / maxVal, 1);
+      const circumference = 2 * Math.PI * 68;
+      const offset = circumference * (1 - pct);
+      const gaugeFill = $('#gaugeFill');
+      gaugeFill.style.strokeDashoffset = offset;
+
+      const colors = { crisis: '#ef4444', warning: '#fbbf24', safe: '#34d399', optimal: '#22d3ee' };
+      gaugeFill.style.stroke = colors[zone];
+
+      // Recommendations
+      if (zone === 'crisis') {
+        alertRecs.classList.add('show');
+        playAlarmSound();
+        showToast(`⚠️ Glucosa en ${val} mg/dL — Sigue las recomendaciones de emergencia`, 'danger');
+      } else if (zone === 'warning') {
+        alertRecs.classList.remove('show');
+        showToast(`Glucosa en ${val} mg/dL — Evita carbohidratos simples`, 'warning');
+      } else {
+        alertRecs.classList.remove('show');
+        showToast(`Glucosa en ${val} mg/dL — Nivel estable`, 'success');
+      }
+    }
+
+    // ===== 2. METRICS REGISTRY =====
+    async function loadGlucoseData() {
+      try {
+        const readings = await apiFetch('/api/v1/glucose/');
+        const stats = await apiFetch('/api/v1/glucose/stats');
+        
+        // Counter statistics
+        $('#avgToday').textContent = stats.avg_all > 0 ? stats.avg_all : '--';
+        
+        const lastEl = $('#lastReading');
+        if (readings.length > 0) {
+          lastEl.textContent = readings[0].value_mgdl;
+          const lzone = getGlucoseZone(readings[0].value_mgdl);
+          const zoneColors = { crisis: '#ef4444', warning: '#fbbf24', safe: '#34d399', optimal: '#22d3ee' };
+          lastEl.style.color = zoneColors[lzone];
+        } else {
+          lastEl.textContent = '--';
+          lastEl.style.color = 'var(--text-muted)';
+        }
+        $('#countToday').textContent = stats.readings_count;
+
+        renderMetricsTable(readings);
+        renderDashboardChart(readings);
+      } catch (err) {
+        console.error("Failed to load glucose data", err);
+      }
+    }
+
+    async function addMetricEntry(e) {
+      e.preventDefault();
+      const dateVal = $('#metricDate').value;
+      const timeVal = $('#metricTime').value;
+      const glucose = parseInt($('#metricGlucose').value);
+      const condition = document.querySelector('input[name="metricCondition"]:checked').value;
+
+      if (!dateVal || !timeVal || !glucose) {
+        showToast('Completa todos los campos', 'warning');
+        return;
+      }
+
+      // Combine local date and time into ISO
+      const dt = new Date(`${dateVal}T${timeVal}:00`);
+
+      try {
+        await apiFetch('/api/v1/glucose/', {
+          method: 'POST',
+          body: JSON.stringify({
+            datetime: dt.toISOString(),
+            value_mgdl: glucose,
+            condition: condition,
+            notes: ''
+          })
+        });
+        showToast(`Lectura de ${glucose} mg/dL registrada`, 'success');
+        $('#metricGlucose').value = '';
+        await loadGlucoseData();
+      } catch (err) {
+        showToast('Error al guardar la lectura', 'danger');
+      }
+    }
+
+    async function deleteMetric(id) {
+      if (!confirm('¿Seguro de eliminar este registro?')) return;
+      try {
+        await apiFetch(`/api/v1/glucose/${id}`, { method: 'DELETE' });
+        showToast('Registro eliminado', 'info');
+        await loadGlucoseData();
+      } catch (err) {
+        showToast('Error al eliminar', 'danger');
+      }
+    }
+
+    function renderMetricsTable(readings) {
+      const container = $('#metricsTableContainer');
+      const emptyEl = $('#metricsEmpty');
+
+      const existingTable = container.querySelector('.metrics-table-wrap');
+      if (existingTable) existingTable.remove();
+
+      if (readings.length === 0) {
+        emptyEl.style.display = '';
+        return;
+      }
+
+      emptyEl.style.display = 'none';
+
+      let html = `<div class="metrics-table-wrap"><table class="metrics-table">
+        <thead><tr>
+          <th>Fecha</th><th>Hora</th><th>Glucosa</th><th>Condición</th><th></th>
+        </tr></thead><tbody>`;
+
+      readings.forEach(m => {
+        const zone = getGlucoseZone(m.value_mgdl);
+        const condLabel = m.condition === 'ayunas' ? '🌙 Ayunas' : '🍽️ Postprandial';
+        html += `<tr>
+          <td>${formatDate(m.datetime)}</td>
+          <td>${formatTime(m.datetime)}</td>
+          <td><span class="glucose-badge ${zone}">${m.value_mgdl}</span></td>
+          <td>${condLabel}</td>
+          <td><button class="delete-btn" onclick="deleteMetric(${m.id})" title="Eliminar">🗑️</button></td>
+        </tr>`;
+      });
+
+      html += '</tbody></table></div>';
+      container.insertAdjacentHTML('beforeend', html);
+    }
+
+    function renderDashboardChart(readings) {
+      const chart = $('#dashboardChart');
+      if (readings.length === 0) {
+        chart.innerHTML = `<div style="text-align:center; width:100%; color:var(--text-muted)">Añade lecturas para ver gráfico</div>`;
+        return;
+      }
+
+      const last7 = readings.slice(0, 7).reverse();
+      const maxVal = Math.max(...last7.map(m => m.value_mgdl), 200);
+
+      let html = '';
+      last7.forEach(m => {
+        const zone = getGlucoseZone(m.value_mgdl);
+        const height = Math.max((m.value_mgdl / maxVal) * 80, 4);
+        const colors = { crisis: 'var(--accent-rose)', warning: 'var(--accent-amber)', safe: 'var(--accent-emerald)', optimal: 'var(--accent-cyan)' };
+        html += `<div class="chart-bar-wrap">
+          <div class="chart-bar-value">${m.value_mgdl}</div>
+          <div class="chart-bar" style="height:${height}px; background:${colors[zone]};"></div>
+          <div class="chart-bar-label">${formatTime(m.datetime)}</div>
+        </div>`;
+      });
+
+      chart.innerHTML = html;
+    }
+
+    // ===== 3. MEALS IA SECTION =====
+    async function loadMealsData() {
+      try {
+        const meals = await apiFetch('/api/v1/meals/');
+        const gallery = $('#mealsGallery');
+        gallery.innerHTML = '';
+        
+        if (meals.length === 0) {
+          gallery.innerHTML = `<p style="grid-column:1/-1; color:var(--text-muted); text-align:center;">No hay fotos de comida registradas aún.</p>`;
+          return;
+        }
+        
+        meals.forEach(meal => {
+          const analysis = meal.ai_analysis || {};
+          const items = analysis.food_items ? analysis.food_items.join(', ') : 'Comida';
+          const impact = analysis.glycemic_impact || 'bajo';
+          
+          const card = document.createElement('div');
+          card.className = 'meal-card';
+          card.innerHTML = `
+            <img src="${meal.thumbnail_path}" alt="Plato" class="meal-img">
+            <div class="meal-info">
+              <span class="meal-date">${formatDate(meal.datetime)} a las ${formatTime(meal.datetime)}</span>
+              <div class="meal-title">${meal.notes || items}</div>
+              
+              <div class="meal-macros">
+                <div>
+                  <div class="macro-val">${analysis.calories_estimated || '--'}</div>
+                  <div class="macro-label">kcal</div>
+                </div>
+                <div>
+                  <div class="macro-val">${analysis.carbs_g || '--'}g</div>
+                  <div class="macro-label">Carbs</div>
+                </div>
+                <div>
+                  <div class="macro-val">${analysis.protein_g || '--'}g</div>
+                  <div class="macro-label">Prot</div>
+                </div>
+                <div>
+                  <div class="macro-val">${analysis.fat_g || '--'}g</div>
+                  <div class="macro-label">Grasa</div>
+                </div>
+              </div>
+              
+              <span class="meal-impact ${impact}">Carga Glucémica: ${impact.toUpperCase()}</span>
+              <p class="meal-rec">${analysis.recommendation || 'Sin recomendaciones disponibles.'}</p>
+            </div>
+          `;
+          gallery.appendChild(card);
+        });
+      } catch (err) {
+        console.error("Failed to load meals data", err);
+      }
+    }
+
+    async function handleMealUpload(e) {
+      e.preventDefault();
+      const photoInput = $('#mealPhoto');
+      const notesInput = $('#mealNotes');
+      const btn = $('#btnUploadMeal');
+      
+      if (photoInput.files.length === 0) {
+        showToast('Por favor, selecciona una foto de comida.', 'warning');
+        return;
+      }
+      
+      const formData = new FormData();
+      formData.append('photo', photoInput.files[0]);
+      if (notesInput.value) {
+        formData.append('notes', notesInput.value);
+      }
+      
+      const originalText = btn.textContent;
+      btn.textContent = '⏳ Analizando con Vision IA...';
+      btn.disabled = true;
+      
+      try {
+        const token = localStorage.getItem('azucar_token');
+        const res = await fetch('/api/v1/meals/upload', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          },
+          body: formData
+        });
+        
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.detail || 'Vision API failed');
+        }
+        
+        showToast('Plato analizado con éxito', 'success');
+        photoInput.value = '';
+        notesInput.value = '';
+        await loadMealsData();
+      } catch (err) {
+        showToast('Error al enviar la imagen: ' + err.message, 'danger');
+      } finally {
+        btn.textContent = originalText;
+        btn.disabled = false;
+      }
+    }
+
+    // ===== 4. FASTING TIMER =====
+    let fastingState = {
+      active: false,
+      startTime: null,
+      protocol: { fasting: 16, eating: 8 },
+      intervalId: null
+    };
+
+    async function loadFastingState() {
+      try {
+        const active = await apiFetch('/api/v1/fasting/active');
+        if (active) {
+          const [fastHours, eatHours] = active.protocol.split(':').map(Number);
+          fastingState = {
+            active: true,
+            startTime: new Date(active.start_time),
+            protocol: { fasting: fastHours, eating: eatHours },
+            intervalId: null
+          };
+          resumeFasting();
+        } else {
+          resetFastingUI();
+        }
+      } catch (err) {
+        console.error("Failed to load fasting status", err);
+      }
+    }
+
+    function selectProtocol(btn) {
+      $$('.protocol-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      fastingState.protocol = {
+        fasting: parseInt(btn.dataset.fasting),
+        eating: parseInt(btn.dataset.eating)
+      };
+      if (!fastingState.active) {
+        $('#fastEatWindow').textContent = `${fastingState.protocol.eating}h`;
+      }
+    }
+
+    async function startFasting() {
+      const startTime = new Date();
+      const protocolStr = `${fastingState.protocol.fasting}:${fastingState.protocol.eating}`;
+      
+      try {
+        const session = await apiFetch('/api/v1/fasting/start', {
+          method: 'POST',
+          body: JSON.stringify({
+            start_time: startTime.toISOString(),
+            protocol: protocolStr
+          })
+        });
+        
+        fastingState.active = true;
+        fastingState.startTime = new Date(session.start_time);
+        
+        $('#btnStartFast').classList.add('hidden');
+        $('#btnStopFast').classList.remove('hidden');
+        
+        const end = new Date(fastingState.startTime.getTime() + fastingState.protocol.fasting * 3600000);
+        $('#fastStartTime').textContent = `${padZero(fastingState.startTime.getHours())}:${padZero(fastingState.startTime.getMinutes())}`;
+        $('#fastEndTime').textContent = `${padZero(end.getHours())}:${padZero(end.getMinutes())}`;
+        $('#fastEatWindow').textContent = `${fastingState.protocol.eating}h`;
+        
+        updateFastingTimer();
+        fastingState.intervalId = setInterval(updateFastingTimer, 1000);
+        showToast(`Ayuno iniciado (${protocolStr})`, 'success');
+      } catch (err) {
+        showToast('Error al iniciar ayuno', 'danger');
+      }
+    }
+
+    function resumeFasting() {
+      $('#btnStartFast').classList.add('hidden');
+      $('#btnStopFast').classList.remove('hidden');
+
+      const start = fastingState.startTime;
+      const end = new Date(start.getTime() + fastingState.protocol.fasting * 3600000);
+      $('#fastStartTime').textContent = `${padZero(start.getHours())}:${padZero(start.getMinutes())}`;
+      $('#fastEndTime').textContent = `${padZero(end.getHours())}:${padZero(end.getMinutes())}`;
+      $('#fastEatWindow').textContent = `${fastingState.protocol.eating}h`;
+
+      $$('.protocol-btn').forEach(b => {
+        b.classList.remove('active');
+        if (parseInt(b.dataset.fasting) === fastingState.protocol.fasting) {
+          b.classList.add('active');
+        }
+      });
+
+      if (fastingState.intervalId) clearInterval(fastingState.intervalId);
+      updateFastingTimer();
+      fastingState.intervalId = setInterval(updateFastingTimer, 1000);
+    }
+
+    async function stopFasting() {
+      const endTime = new Date();
+      try {
+        await apiFetch('/api/v1/fasting/stop', {
+          method: 'POST',
+          body: JSON.stringify({
+            end_time: endTime.toISOString(),
+            completed: true
+          })
+        });
+        
+        fastingState.active = false;
+        if (fastingState.intervalId) clearInterval(fastingState.intervalId);
+        fastingState.intervalId = null;
+        
+        $('#btnStartFast').classList.remove('hidden');
+        $('#btnStopFast').classList.add('hidden');
+        showToast('Ayuno completado. ¡Buen trabajo!', 'success');
+        resetFastingUI();
+      } catch (err) {
+        showToast('Error al finalizar el ayuno', 'danger');
+      }
+    }
+
+    function resetFastingUI() {
+      fastingState.active = false;
+      fastingState.startTime = null;
+      if (fastingState.intervalId) clearInterval(fastingState.intervalId);
+      fastingState.intervalId = null;
+      
+      $('#btnStartFast').classList.remove('hidden');
+      $('#btnStopFast').classList.add('hidden');
+      $('#fastingTimerValue').textContent = '00:00:00';
+      $('#fastingTimerLabel').textContent = 'Sin iniciar';
+      $('#fastStartTime').textContent = '--:--';
+      $('#fastEndTime').textContent = '--:--';
+      $('#fastEatWindow').textContent = `${fastingState.protocol.eating}h`;
+      
+      const gauge = $('#fastingGaugeFill');
+      gauge.style.strokeDashoffset = 534.07;
+      gauge.style.stroke = 'var(--accent-indigo)';
+    }
+
+    function resetFasting() {
+      resetFastingUI();
+    }
+
+    function updateFastingTimer() {
+      if (!fastingState.active || !fastingState.startTime) return;
+
+      const now = new Date();
+      const elapsed = now - fastingState.startTime;
+      const totalMs = fastingState.protocol.fasting * 3600000;
+      const remaining = totalMs - elapsed;
+
+      if (remaining <= 0) {
+        $('#fastingTimerValue').textContent = '✅';
+        $('#fastingTimerLabel').textContent = 'Ayuno Completado';
+        if (fastingState.intervalId) clearInterval(fastingState.intervalId);
+        playAlarmSound();
+        showToast('🎉 Ventana de ayuno finalizada. Puedes ingerir alimentos.', 'success');
+
+        const gauge = $('#fastingGaugeFill');
+        gauge.style.strokeDashoffset = 0;
+        gauge.style.stroke = 'var(--accent-emerald)';
+        return;
+      }
+
+      const hrs = Math.floor(remaining / 3600000);
+      const mins = Math.floor((remaining % 3600000) / 60000);
+      const secs = Math.floor((remaining % 60000) / 1000);
+
+      $('#fastingTimerValue').textContent = `${padZero(hrs)}:${padZero(mins)}:${padZero(secs)}`;
+
+      const pct = elapsed / totalMs;
+      if (pct < 0.5) {
+        $('#fastingTimerLabel').textContent = '🔥 Quemando glucógeno...';
+      } else if (pct < 0.75) {
+        $('#fastingTimerLabel').textContent = '⚡ Entrando en cetosis leve';
+      } else {
+        $('#fastingTimerLabel').textContent = '🏆 Ayuno profundo — ¡Casi lo logras!';
+      }
+
+      const circumference = 2 * Math.PI * 85;
+      const offset = circumference * (1 - pct);
+      const gauge = $('#fastingGaugeFill');
+      gauge.style.strokeDashoffset = offset;
+
+      if (pct < 0.5) gauge.style.stroke = 'var(--accent-indigo)';
+      else if (pct < 0.75) gauge.style.stroke = 'var(--accent-violet)';
+      else gauge.style.stroke = 'var(--accent-emerald)';
+    }
+
+    // ===== 5. ALARMS SYSTEM (HYBRID LOCAL/PUSH) =====
+    let alarmIntervals = { postprandial: null, hydration: null, metformin: null };
+    let alarmEndTimes = { postprandial: null, hydration: null, metformin: null };
+
+    async function loadAlarms() {
+      try {
+        const dbAlarms = await apiFetch('/api/v1/alarms/');
+        // Sync local clocks with database configs
+        dbAlarms.forEach(alarm => {
+          if (alarm.type === 'metformina' && alarm.is_active) {
+            $('#metforminTime').value = alarm.config_time;
+            restoreLocalMetformin(alarm.config_time);
+          }
+        });
+        
+        // Restore local counter alarms
+        const ppEnd = localStorage.getItem('azucar_alarm_pp');
+        if (ppEnd && parseInt(ppEnd) > Date.now()) {
+          alarmEndTimes.postprandial = parseInt(ppEnd);
+          $('#btnAteNow').classList.add('hidden');
+          $('#btnCancelPP').classList.remove('hidden');
+          $('#alarmPostprandial').classList.add('active-alarm');
+          if (alarmIntervals.postprandial) clearInterval(alarmIntervals.postprandial);
+          alarmIntervals.postprandial = setInterval(updatePostprandialTimer, 1000);
+          updatePostprandialTimer();
+        }
+        
+        const hydEnd = localStorage.getItem('azucar_alarm_hydration');
+        if (hydEnd && parseInt(hydEnd) > Date.now()) {
+          alarmEndTimes.hydration = parseInt(hydEnd);
+          $('#btnStartHydration').classList.add('hidden');
+          $('#btnCancelHydration').classList.remove('hidden');
+          $('#alarmHydration').classList.add('active-alarm');
+          if (alarmIntervals.hydration) clearInterval(alarmIntervals.hydration);
+          alarmIntervals.hydration = setInterval(updateHydrationTimer, 1000);
+          updateHydrationTimer();
+        }
+      } catch (err) {
+        console.error("Failed to load alarms", err);
+      }
+    }
+
+    async function startPostprandialAlarm() {
+      const twoHoursMs = 2 * 60 * 60 * 1000;
+      alarmEndTimes.postprandial = Date.now() + twoHoursMs;
+      localStorage.setItem('azucar_alarm_pp', alarmEndTimes.postprandial);
+
+      $('#btnAteNow').classList.add('hidden');
+      $('#btnCancelPP').classList.remove('hidden');
+      $('#alarmPostprandial').classList.add('active-alarm');
+
+      showToast('⏱️ Temporizador de 2 horas activado para medición Postprandial.', 'info');
+      
+      // Register with the database for Server-Side Push fallback
+      const alertTime = new Date(alarmEndTimes.postprandial);
+      try {
+        await apiFetch('/api/v1/alarms/', {
+          method: 'POST',
+          body: JSON.stringify({
+            type: 'postprandial',
+            config_time: `${padZero(alertTime.getHours())}:${padZero(alertTime.getMinutes())}`,
+            is_active: true
+          })
+        });
+      } catch {}
+
+      if (alarmIntervals.postprandial) clearInterval(alarmIntervals.postprandial);
+      alarmIntervals.postprandial = setInterval(updatePostprandialTimer, 1000);
+      updatePostprandialTimer();
+    }
+
+    function updatePostprandialTimer() {
+      const end = alarmEndTimes.postprandial;
+      if (!end) return;
+
+      const remaining = end - Date.now();
+      if (remaining <= 0) {
+        clearInterval(alarmIntervals.postprandial);
+        alarmIntervals.postprandial = null;
+        alarmEndTimes.postprandial = null;
+        localStorage.removeItem('azucar_alarm_pp');
+
+        $('#postprandialTimerDisplay').textContent = '¡AHORA!';
+        $('#postprandialTimerDisplay').style.color = 'var(--accent-rose)';
+        $('#alarmPostprandial').classList.remove('active-alarm');
+        $('#alarmPostprandial').classList.add('ringing');
+
+        playAlarmSound();
+        showToast('🩸 ¡Pasaron 2 horas! Mide tu nivel de glucosa postprandial.', 'danger');
+
+        setTimeout(() => {
+          $('#alarmPostprandial').classList.remove('ringing');
+          $('#postprandialTimerDisplay').style.color = 'var(--text-muted)';
+          $('#postprandialTimerDisplay').textContent = '--:--';
+          $('#btnAteNow').classList.remove('hidden');
+          $('#btnCancelPP').classList.add('hidden');
+        }, 15000);
+        return;
+      }
+
+      const mins = Math.floor(remaining / 60000);
+      const secs = Math.floor((remaining % 60000) / 1000);
+      $('#postprandialTimerDisplay').textContent = `${padZero(mins)}:${padZero(secs)}`;
+      $('#postprandialTimerDisplay').style.color = 'var(--accent-amber)';
+    }
+
+    async function cancelPostprandialAlarm() {
+      if (alarmIntervals.postprandial) clearInterval(alarmIntervals.postprandial);
+      alarmIntervals.postprandial = null;
+      alarmEndTimes.postprandial = null;
+      localStorage.removeItem('azucar_alarm_pp');
+
+      $('#postprandialTimerDisplay').textContent = '--:--';
+      $('#postprandialTimerDisplay').style.color = 'var(--text-muted)';
+      $('#btnAteNow').classList.remove('hidden');
+      $('#btnCancelPP').classList.add('hidden');
+      $('#alarmPostprandial').classList.remove('active-alarm');
+      
+      // Deactivate on DB
+      try {
+        await apiFetch('/api/v1/alarms/', {
+          method: 'POST',
+          body: JSON.stringify({
+            type: 'postprandial',
+            config_time: '00:00',
+            is_active: false
+          })
+        });
+      } catch {}
+      
+      showToast('Alarma postprandial desactivada', 'info');
+    }
+
+    // Hydration Timer
+    function startHydrationAlarm() {
+      const twoHoursMs = 2 * 60 * 60 * 1000;
+      alarmEndTimes.hydration = Date.now() + twoHoursMs;
+      localStorage.setItem('azucar_alarm_hydration', alarmEndTimes.hydration);
+
+      $('#btnStartHydration').classList.add('hidden');
+      $('#btnCancelHydration').classList.remove('hidden');
+      $('#alarmHydration').classList.add('active-alarm');
+
+      showToast('💧 Recordatorio de hidratación activado (2 horas).', 'success');
+
+      if (alarmIntervals.hydration) clearInterval(alarmIntervals.hydration);
+      alarmIntervals.hydration = setInterval(updateHydrationTimer, 1000);
+      updateHydrationTimer();
+    }
+
+    function updateHydrationTimer() {
+      const end = alarmEndTimes.hydration;
+      if (!end) return;
+
+      const remaining = end - Date.now();
+      if (remaining <= 0) {
+        playAlarmSound();
+        showToast('💧 ¡Hora de hidratarte! Bebe un vaso de agua pura.', 'warning');
+        $('#alarmHydration').classList.add('ringing');
+
+        setTimeout(() => {
+          $('#alarmHydration').classList.remove('ringing');
+        }, 5000);
+
+        // Auto restart local cycle
+        const twoHoursMs = 2 * 60 * 60 * 1000;
+        alarmEndTimes.hydration = Date.now() + twoHoursMs;
+        localStorage.setItem('azucar_alarm_hydration', alarmEndTimes.hydration);
+        return;
+      }
+
+      const hrs = Math.floor(remaining / 3600000);
+      const mins = Math.floor((remaining % 3600000) / 60000);
+      const secs = Math.floor((remaining % 60000) / 1000);
+
+      $('#hydrationTimerDisplay').textContent = hrs > 0 
+        ? `${hrs}:${padZero(mins)}:${padZero(secs)}`
+        : `${padZero(mins)}:${padZero(secs)}`;
+      $('#hydrationTimerDisplay').style.color = 'var(--accent-cyan)';
+    }
+
+    function cancelHydrationAlarm() {
+      if (alarmIntervals.hydration) clearInterval(alarmIntervals.hydration);
+      alarmIntervals.hydration = null;
+      alarmEndTimes.hydration = null;
+      localStorage.removeItem('azucar_alarm_hydration');
+
+      $('#hydrationTimerDisplay').textContent = '--:--';
+      $('#hydrationTimerDisplay').style.color = 'var(--text-muted)';
+      $('#btnStartHydration').classList.remove('hidden');
+      $('#btnCancelHydration').classList.add('hidden');
+      $('#alarmHydration').classList.remove('active-alarm');
+      showToast('Alarma de hidratación desactivada', 'info');
+    }
+
+    // Metformin Daily Alarms
+    async function setMetforminAlarm() {
+      const timeVal = $('#metforminTime').value;
+      if (!timeVal) {
+        showToast('Configura una hora válida', 'warning');
+        return;
+      }
+
+      try {
+        await apiFetch('/api/v1/alarms/', {
+          method: 'POST',
+          body: JSON.stringify({
+            type: 'metformina',
+            config_time: timeVal,
+            is_active: true
+          })
+        });
+        showToast(`💊 Alarma de Metformina programada a las ${timeVal}`, 'success');
+        restoreLocalMetformin(timeVal);
+      } catch (err) {
+        showToast('Error al programar recordatorio en DB', 'danger');
+      }
+    }
+
+    function restoreLocalMetformin(timeVal) {
+      const [h, m] = timeVal.split(':').map(Number);
+      const now = new Date();
+      let target = new Date();
+      target.setHours(h, m, 0, 0);
+      if (target <= now) target.setDate(target.getDate() + 1);
+
+      alarmEndTimes.metformin = target.getTime();
+
+      $('#btnSetMetformin').classList.add('hidden');
+      $('#btnCancelMetformin').classList.remove('hidden');
+      $('#alarmMetformin').classList.add('active-alarm');
+
+      if (alarmIntervals.metformin) clearInterval(alarmIntervals.metformin);
+      alarmIntervals.metformin = setInterval(updateMetforminTimer, 1000);
+      updateMetforminTimer();
+    }
+
+    function updateMetforminTimer() {
+      const end = alarmEndTimes.metformin;
+      if (!end) return;
+
+      const remaining = end - Date.now();
+      if (remaining <= 0) {
+        playAlarmSound();
+        showToast('💊 ¡Hora de la Metformina! Recuérdala acompañar con comida.', 'danger');
+        $('#alarmMetformin').classList.add('ringing');
+
+        setTimeout(() => {
+          $('#alarmMetformin').classList.remove('ringing');
+          // Re-schedule for next day
+          const timeVal = $('#metforminTime').value;
+          restoreLocalMetformin(timeVal);
+        }, 10000);
+        return;
+      }
+
+      const hrs = Math.floor(remaining / 3600000);
+      const mins = Math.floor((remaining % 3600000) / 60000);
+      const secs = Math.floor((remaining % 60000) / 1000);
+
+      $('#metforminTimerDisplay').textContent = `${hrs}:${padZero(mins)}:${padZero(secs)}`;
+      $('#metforminTimerDisplay').style.color = 'var(--accent-violet)';
+    }
+
+    async function cancelMetforminAlarm() {
+      try {
+        await apiFetch('/api/v1/alarms/', {
+          method: 'POST',
+          body: JSON.stringify({
+            type: 'metformina',
+            config_time: '00:00',
+            is_active: false
+          })
+        });
+        
+        if (alarmIntervals.metformin) clearInterval(alarmIntervals.metformin);
+        alarmIntervals.metformin = null;
+        alarmEndTimes.metformin = null;
+
+        $('#metforminTimerDisplay').textContent = '--:--';
+        $('#metforminTimerDisplay').style.color = 'var(--text-muted)';
+        $('#btnSetMetformin').classList.remove('hidden');
+        $('#btnCancelMetformin').classList.add('hidden');
+        $('#alarmMetformin').classList.remove('active-alarm');
+        showToast('Alarma de Metformina desactivada', 'info');
+      } catch (err) {
+        showToast('Error al desactivar la alarma', 'danger');
+      }
+    }
+
+    // ===== 6. HABITS CHECKLIST =====
+    async function loadHabits() {
+      try {
+        const habits = await apiFetch('/api/v1/habits/today');
+        renderHabitsUI(habits);
+      } catch (err) {
+        console.error("Failed to load habits", err);
+      }
+    }
+
+    async function toggleHabit(el) {
+      const habitId = el.dataset.habit;
+      try {
+        await apiFetch('/api/v1/habits/toggle', {
+          method: 'POST',
+          body: JSON.stringify({
+            date: getTodayStr(),
+            habit_key: habitId
+          })
+        });
+        await loadHabits();
+      } catch (err) {
+        showToast('Error al registrar hábito', 'danger');
+      }
+    }
+
+    function renderHabitsUI(habits) {
+      const items = $$('.habit-item');
+      let completed = 0;
+
+      items.forEach(item => {
+        const id = item.dataset.habit;
+        if (habits[id]) {
+          item.classList.add('completed');
+          item.querySelector('.habit-checkbox').innerHTML = '✓';
+          completed++;
+        } else {
+          item.classList.remove('completed');
+          item.querySelector('.habit-checkbox').innerHTML = '';
+        }
+      });
+
+      const total = items.length;
+      const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
+      $('#habitsProgressPct').textContent = `${pct}%`;
+      $('#habitsProgressFill').style.width = `${pct}%`;
+
+      if (pct === 100 && completed > 0) {
+        showToast('🏆 ¡Felicidades! Completaste todos tus hábitos diarios.', 'success');
+      }
+    }
+
+    // ===== 7. AI HERMES ASSISTANT =====
+    let chatHistory = [];
+
+    function appendChatMessage(text, sender) {
+      const container = $('#chatMessages');
+      const msg = document.createElement('div');
+      msg.className = `chat-msg ${sender}`;
+      msg.textContent = text;
+      container.appendChild(msg);
+      container.scrollTop = container.scrollHeight;
+    }
+
+    async function handleChatSubmit(e) {
+      e.preventDefault();
+      const input = $('#chatInput');
+      const message = input.value.trim();
+      if (!message) return;
+      
+      appendChatMessage(message, 'user');
+      input.value = '';
+      
+      const btn = $('#btnSendChat');
+      btn.disabled = true;
+      
+      try {
+        const res = await apiFetch('/api/v1/ai/chat', {
+          method: 'POST',
+          body: JSON.stringify({
+            message: message,
+            history: chatHistory
+          })
+        });
+        
+        appendChatMessage(res.response, 'bot');
+        chatHistory.push({ role: 'user', content: message });
+        chatHistory.push({ role: 'assistant', content: res.response });
+        
+        if (chatHistory.length > 20) chatHistory = chatHistory.slice(-20);
+      } catch (err) {
+        appendChatMessage('Error al conectar con Hermes. Por favor intenta más tarde.', 'bot');
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    // ===== PUSH NOTIFICATIONS REGISTRATION =====
+    async function requestPushNotifications() {
+      if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+        showToast('Las notificaciones Push no son soportadas en este navegador.', 'warning');
+        return;
+      }
+      
+      const btn = $('#btnEnablePush');
+      btn.disabled = true;
+      
+      try {
+        const permission = await Notification.requestPermission();
+        if (permission !== 'granted') {
+          showToast('Permiso de notificación denegado.', 'warning');
+          btn.disabled = false;
+          return;
+        }
+        
+        const registration = await navigator.serviceWorker.ready;
+        
+        // Fetch VAPID key from backend
+        const keyRes = await apiFetch('/api/v1/notifications/key');
+        if (!keyRes.public_key) {
+          throw new Error('VAPID public key empty');
+        }
+        
+        // Convert base64 url-safe VAPID key to UInt8Array
+        const convertedKey = urlBase64ToUint8Array(keyRes.public_key);
+        
+        const subscription = await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: convertedKey
+        });
+        
+        // Send subscription object to backend
+        await apiFetch('/api/v1/notifications/subscribe', {
+          method: 'POST',
+          body: JSON.stringify(subscription)
+        });
+        
+        showToast('🔔 Alertas en tiempo real activadas.', 'success');
+        btn.textContent = '✅ Alertas Activas';
+        btn.style.color = 'var(--text-muted)';
+        
+        // Trigger a test notification
+        await apiFetch('/api/v1/notifications/test', { method: 'POST' }).catch(() => {});
+      } catch (err) {
+        console.error(err);
+        showToast('Error al activar notificaciones Push.', 'danger');
+        btn.disabled = false;
+      }
+    }
+
+    function urlBase64ToUint8Array(base64String) {
+      const padding = '='.repeat((4 - base64String.length % 4) % 4);
+      const base64 = (base64String + padding)
+        .replace(/\-/g, '+')
+        .replace(/_/g, '/');
+      const rawData = window.atob(base64);
+      const outputArray = new Uint8Array(rawData.length);
+      for (let i = 0; i < rawData.length; ++i) {
+        outputArray[i] = rawData.charCodeAt(i);
+      }
+      return outputArray;
+    }
+
+    // ===== MAIN INITIALIZER =====
+    function init() {
+      const token = localStorage.getItem('azucar_token');
+      if (token) {
+        $('#authOverlay').classList.add('hidden');
+        initializeSession();
+      } else {
+        $('#authOverlay').classList.remove('hidden');
+      }
+      
+      // Register Service Worker
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/sw.js')
+          .then(reg => {
+            console.log('Service Worker Registered successfully', reg.scope);
+            // If already subscribed, update push button state
+            reg.pushManager.getSubscription().then(sub => {
+              if (sub) {
+                const btn = $('#btnEnablePush');
+                btn.textContent = '✅ Alertas Activas';
+                btn.style.color = 'var(--text-muted)';
+                btn.disabled = true;
+              }
+            });
+          })
+          .catch(err => console.error('Service Worker registration failed:', err));
+      }
+    }
+
+    init();
+  </script>
+</body>
+</html>

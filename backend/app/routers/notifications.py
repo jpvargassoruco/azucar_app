@@ -10,6 +10,12 @@ from app.auth.dependencies import get_current_user
 
 router = APIRouter()
 
+@router.get("/key")
+async def get_vapid_public_key():
+    """Retrieve the server's VAPID public key for web push subscription."""
+    from app.config import settings
+    return {"public_key": settings.VAPID_PUBLIC_KEY}
+
 @router.post("/subscribe", status_code=status.HTTP_201_CREATED)
 async def subscribe_notifications(
     sub_in: PushSubscriptionCreate,
