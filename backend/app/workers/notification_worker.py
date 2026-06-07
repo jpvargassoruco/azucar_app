@@ -25,13 +25,13 @@ async def process_notifications():
     SessionLocal = async_sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=False)
     
     # Connect to Redis async
-    r = Redis.from_url(settings.REDIS_URL)
+    r = Redis.from_url(settings.REDIS_URL, socket_timeout=10.0)
     logger.info("Notification Worker started. Listening on 'notifications_queue'...")
     
     while True:
         try:
             # BLPOP blocks until an item is available in the list
-            res = await r.blpop("notifications_queue", timeout=5)
+            res = await r.blpop("notifications_queue", timeout=2)
             if not res:
                 continue
                 
