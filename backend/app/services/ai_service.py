@@ -136,7 +136,7 @@ async def query_hermes_agent(message: str, history: list, health_context: str) -
             
             try:
                 response = await client.post(
-                    "https://openrouter.ai/api/v1/chat/completions",
+                    f"{settings.OPENROUTER_BASE_URL}/chat/completions",
                     headers=or_headers,
                     json=payload
                 )

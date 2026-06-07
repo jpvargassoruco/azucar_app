@@ -65,7 +65,7 @@ async def analyze_meal_image(image_path: str) -> dict:
         
         async with httpx.AsyncClient(timeout=45.0) as client:
             response = await client.post(
-                "https://openrouter.ai/api/v1/chat/completions",
+                f"{settings.OPENROUTER_BASE_URL}/chat/completions",
                 headers=headers,
                 json=payload
             )

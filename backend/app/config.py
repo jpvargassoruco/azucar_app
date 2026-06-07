@@ -21,6 +21,7 @@ class Settings(BaseSettings):
     # AI / Hermes
     OPENROUTER_API_KEY: str = ""
     OPENROUTER_MODEL: str = "openrouter/auto"
+    OPENROUTER_BASE_URL: str = "https://openrouter.ai/api/v1"
     HERMES_API_KEY: str = ""
     HERMES_URL: str = "http://hermes:8642"
     
