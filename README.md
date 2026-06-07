@@ -130,3 +130,27 @@ La plataforma no incluye credenciales de prueba preconfiguradas para proteger la
 * **Apuntar el Túnel**: En el panel de Cloudflare Zero Trust, la configuración del Hostname Público para `azucar.aeisoftware.com` debe apuntar al puerto interno de Nginx en Docker:
   * **Type**: `HTTP`
   * **URL**: `nginx:80` (en lugar de `localhost:80`)
+
+### 3. Configuración de Límite de Subida en Nginx (413 Payload Too Large)
+* **Problema**: Las fotos de platos capturadas desde smartphones de alta gama excedían el límite de subida predeterminado de Nginx (1 MB), impidiendo el análisis de comida por IA.
+* **Solución**: Se configuró la directiva `client_max_body_size 20M;` en `frontend/nginx.conf` y se reinició el contenedor `nginx` para refrescar el montaje del volumen en el host, permitiendo fotos de hasta 20 MB.
+
+---
+
+## 🚀 Nuevas Funcionalidades Implementadas
+
+### 1. Configuración de Proveedor de IA Personalizado (Kimi / OpenRouter)
+* **Multi-tenant**: Cada usuario puede configurar de forma privada su propia API Key, modelo y URL base desde la pestaña de **Configuración** ⚙️ en la app.
+* **Kimi / Moonshot base URLs**:
+  * Cuentas nacionales (China): `https://api.moonshot.cn/v1`
+  * Cuentas globales (Internacionales): `https://api.moonshot.ai/v1`
+* **Corrección de Compatibilidad**: El backend de FastAPI detecta automáticamente al proveedor `kimi` y omite el parámetro de `temperature` en las solicitudes de completación, evitando errores `400 Bad Request` en modelos de razonamiento (como `kimi-k2.6`) que exigen temperatura fija de 1 o su ausencia.
+* **Nota sobre Modelos de Razonamiento**: El modelo `kimi-k2.6` realiza cadenas de razonamiento profundo que toman entre **20 y 35 segundos** antes de responder. Para respuestas instantáneas (menos de 2 segundos) en el análisis visual de comidas, se recomienda configurar modelos sin razonamiento como `moonshot-v1-8k-vision-preview` o `moonshot-v1-32k-vision-preview`.
+
+### 2. Eliminación de Comidas y Optimización de Almacenamiento
+* Se añadió un botón flotante para eliminar comidas (🗑️) del historial.
+* Al eliminar un registro de comida en la base de datos, el backend localiza y **elimina físicamente el archivo de imagen de previsualización (thumbnail) del almacenamiento del servidor** (`frontend/uploads/`), garantizando la privacidad del usuario y la optimización del espacio en disco del VPS.
+
+### 3. Temporizador de Ayuno con Inicio Retroactivo
+* La pestaña de **Ayuno** permite ahora especificar manualmente la fecha y hora de inicio de la sesión en caso de que el usuario haya olvidado pulsar el botón a tiempo, calculando correctamente la duración restante del protocolo elegido.
+
