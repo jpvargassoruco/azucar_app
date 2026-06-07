@@ -1,0 +1,36 @@
+.git
+.gitignore
+.ssh
+.env
+.env.*
+README.md
+task.md
+implementation_plan.md
+walkthrough.md
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+pip-log.txt
+pip-delete-this-directory.txt
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Local data / uploads
+uploads/
+db_data/
+postgres_data/
+redis_data/
+hermes_data/
+backup_data/
+
+# Frontend
+frontend/node_modules/
+frontend/dist/

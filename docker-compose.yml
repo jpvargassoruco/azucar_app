@@ -1,0 +1,240 @@
+version: "3.8"
+
+networks:
+  proxy:
+    name: azucar_proxy
+  backend:
+    name: azucar_backend
+    internal: true
+
+volumes:
+  postgres_data:
+    name: azucar_postgres_data
+  redis_data:
+    name: azucar_redis_data
+  hermes_data:
+    name: azucar_hermes_data
+  meal_uploads:
+    name: azucar_meal_uploads
+  backup_data:
+    name: azucar_backup_data
+
+services:
+  # ─── FRONTEND & PROXY ───
+  nginx:
+    image: nginx:1.25-alpine
+    container_name: azucar-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./frontend:/usr/share/nginx/html:ro
+      - ./frontend/nginx.conf:/etc/nginx/nginx.conf:ro
+      - meal_uploads:/usr/share/nginx/html/uploads:ro
+    networks:
+      - proxy
+    depends_on:
+      backend:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: "0.10"
+          memory: 64M
+
+  # ─── CLOUDFLARE TUNNEL ───
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: azucar-tunnel
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run --token ${CLOUDFLARE_TUNNEL_TOKEN}
+    networks:
+      - proxy
+    deploy:
+      resources:
+        limits:
+          cpus: "0.15"
+          memory: 64M
+
+  # ─── BACKEND API ───
+  backend:
+    build:
+      context: ./backend
+      target: api
+    container_name: azucar-backend
+    restart: unless-stopped
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      - REDIS_URL=redis://redis:6379/0
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - JWT_ALGORITHM=${JWT_ALGORITHM}
+      - JWT_EXPIRE_MINUTES=${JWT_EXPIRE_MINUTES}
+      - VAPID_PUBLIC_KEY=${VAPID_PUBLIC_KEY}
+      - VAPID_PRIVATE_KEY=${VAPID_PRIVATE_KEY}
+      - VAPID_MAILTO=${VAPID_MAILTO}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+      - OPENROUTER_MODEL=${OPENROUTER_MODEL}
+      - HERMES_API_KEY=${HERMES_API_KEY}
+      - HERMES_URL=http://hermes:8642
+      - MAX_UPLOAD_SIZE_MB=${MAX_UPLOAD_SIZE_MB}
+      - THUMBNAIL_SIZE=${THUMBNAIL_SIZE}
+    volumes:
+      - meal_uploads:/app/uploads
+    networks:
+      - proxy
+      - backend
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: "0.40"
+          memory: 384M
+
+  # ─── DATABASE (POSTGRESQL) ───
+  db:
+    image: postgres:16-alpine
+    container_name: azucar-db
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-db:/docker-entrypoint-initdb.d
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: "0.40"
+          memory: 512M
+
+  # ─── CACHE & MESSAGE BROKER (REDIS) ───
+  redis:
+    image: redis:7-alpine
+    container_name: azucar-redis
+    restart: unless-stopped
+    command: redis-server --save 60 1 --loglevel warning
+    volumes:
+      - redis_data:/data
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: "0.15"
+          memory: 128M
+
+  # ─── NOTIFICATION WORKER ───
+  worker:
+    build:
+      context: ./backend
+      target: worker
+    container_name: azucar-worker
+    restart: unless-stopped
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      - REDIS_URL=redis://redis:6379/0
+      - VAPID_PUBLIC_KEY=${VAPID_PUBLIC_KEY}
+      - VAPID_PRIVATE_KEY=${VAPID_PRIVATE_KEY}
+      - VAPID_MAILTO=${VAPID_MAILTO}
+    networks:
+      - backend
+    depends_on:
+      redis:
+        condition: service_healthy
+      db:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: "0.20"
+          memory: 128M
+
+  # ─── SCHEDULER (SUPERCRONIC) ───
+  scheduler:
+    build:
+      context: ./scheduler
+    container_name: azucar-scheduler
+    restart: unless-stopped
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      - BACKEND_URL=http://backend:8000
+    networks:
+      - backend
+    depends_on:
+      backend:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: "0.10"
+          memory: 64M
+
+  # ─── HERMES HEALTH AI AGENT ───
+  hermes:
+    image: ghcr.io/nousresearch/hermes-agent:latest
+    container_name: azucar-hermes
+    restart: unless-stopped
+    environment:
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+      - API_SERVER_ENABLED=true
+      - API_SERVER_KEY=${HERMES_API_KEY}
+    volumes:
+      - hermes_data:/opt/data
+    networks:
+      - proxy
+      - backend
+    deploy:
+      resources:
+        limits:
+          cpus: "0.40"
+          memory: 384M
+
+  # ─── DATABASE BACKUPS (DAILY) ───
+  db-backup:
+    image: prodrigestivill/postgres-backup-local:16-alpine
+    container_name: azucar-db-backup
+    restart: unless-stopped
+    environment:
+      - POSTGRES_HOST=db
+      - POSTGRES_PORT=5432
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - BACKUP_NUM_KEEP=7
+      - BACKUP_FREQUENCY=1d
+    volumes:
+      - backup_data:/backups
+    networks:
+      - backend
+    depends_on:
+      db:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: "0.10"
+          memory: 64M

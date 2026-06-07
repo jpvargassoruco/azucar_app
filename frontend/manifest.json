@@ -1,0 +1,21 @@
+{
+  "short_name": "Azúcar",
+  "name": "Azúcar Control - Gestión de Diabetes",
+  "icons": [
+    {
+      "src": "/icons/icon-192x192.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "/icons/icon-512x512.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#0a0e1a",
+  "theme_color": "#818cf8",
+  "display": "standalone",
+  "orientation": "portrait"
+}

@@ -1,0 +1,41 @@
+version: "3.8"
+
+services:
+  # Expose proxy ports on localhost:80
+  nginx:
+    ports:
+      - "8080:80"
+    volumes:
+      - ./frontend:/usr/share/nginx/html
+
+  # Disable cloudflared in development
+  cloudflared:
+    deploy:
+      replicas: 0
+
+  # Run API in development mode with reload and volume mount
+  backend:
+    build:
+      context: ./backend
+      target: base
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+      - azucar_meal_uploads:/app/uploads
+
+  # Expose Postgres on local 5432 for easy GUI admin connection
+  db:
+    ports:
+      - "5432:5432"
+
+  # Expose Redis on 6379 for debugging queues
+  redis:
+    ports:
+      - "6379:6379"
+
+  # Expose Hermes Agent on 8642
+  hermes:
+    ports:
+      - "8642:8642"
