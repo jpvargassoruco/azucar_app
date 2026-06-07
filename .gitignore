@@ -14,3 +14,9 @@ node_modules/
 
 # Logs
 *.log
+
+# Sensitive credentials and environment files
+.ssh/
+.env
+.env.*
+
