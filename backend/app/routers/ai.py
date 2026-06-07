@@ -25,7 +25,8 @@ async def chat_with_assistant(
     response_text = await query_hermes_agent(
         message=chat_in.message,
         history=chat_in.history,
-        health_context=health_context
+        health_context=health_context,
+        user=current_user
     )
     
     return AIChatResponse(response=response_text)

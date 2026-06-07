@@ -61,8 +61,8 @@ async def upload_meal(
             content = await photo.read()
             f.write(content)
             
-        # Run Vision API analysis on OpenRouter
-        analysis_result = await analyze_meal_image(temp_path)
+        # Run Vision API analysis on resolved AI provider
+        analysis_result = await analyze_meal_image(temp_path, user=current_user)
         
         # Compress and save thumbnail
         thumbnail_path = compress_to_thumbnail(temp_path, UPLOAD_DIR, f"{unique_id}{ext}")
@@ -95,3 +95,38 @@ async def upload_meal(
     await db.commit()
     await db.refresh(db_meal)
     return db_meal
+
+@router.delete("/{meal_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_meal(
+    meal_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Delete a meal entry and its associated thumbnail from disk."""
+    result = await db.execute(
+        select(MealEntry)
+        .filter(MealEntry.id == meal_id, MealEntry.user_id == current_user.id)
+    )
+    meal = result.scalars().first()
+    if not meal:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Comida no encontrada o no tienes permisos para eliminarla."
+        )
+        
+    # Delete thumbnail file from disk if it exists
+    if meal.thumbnail_path:
+        filename = os.path.basename(meal.thumbnail_path)
+        disk_path = os.path.join(UPLOAD_DIR, filename)
+        try:
+            if os.path.exists(disk_path):
+                os.remove(disk_path)
+        except Exception as ex:
+            # We can log this to console or warnings
+            import logging
+            logging.getLogger(__name__).warning(f"No se pudo eliminar el archivo {disk_path}: {ex}")
+            
+    await db.delete(meal)
+    await db.commit()
+    return
+

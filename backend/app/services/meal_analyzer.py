@@ -3,16 +3,28 @@ import base64
 import json
 from app.config import settings
 import logging
+from app.models.user import User
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 
-async def analyze_meal_image(image_path: str) -> dict:
+async def analyze_meal_image(image_path: str, user: Optional[User] = None) -> dict:
     """
-    Sends the meal image to the OpenRouter Vision API.
+    Sends the meal image to the resolved Vision API (OpenRouter or Kimi).
     Parses and returns structured nutritional details.
     """
-    if not settings.OPENROUTER_API_KEY:
-        logger.warning("OPENROUTER_API_KEY not configured. Returning fallback placeholder analysis.")
+    # Resolve credentials, model, and endpoint
+    api_key = user.ai_api_key if user and user.ai_api_key else settings.OPENROUTER_API_KEY
+    base_url = user.ai_base_url if user and user.ai_base_url else settings.OPENROUTER_BASE_URL
+    model = user.ai_model if user and user.ai_model else settings.OPENROUTER_MODEL
+    provider = user.ai_provider if user and user.ai_provider else "openrouter"
+    
+    # Autofill defaults for Kimi
+    if user and provider == "kimi" and not user.ai_base_url:
+        base_url = "https://api.moonshot.cn/v1"
+
+    if not api_key:
+        logger.warning("No API Key configured for meal analysis. Returning fallback.")
         return get_fallback_analysis()
         
     try:
@@ -23,7 +35,7 @@ async def analyze_meal_image(image_path: str) -> dict:
         image_data_url = f"data:image/jpeg;base64,{base64_image}"
         
         headers = {
-            "Authorization": f"Bearer {settings.OPENROUTER_API_KEY}",
+            "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
             "HTTP-Referer": "https://azucar.aeisoftware.com",
             "X-Title": "Azucar Control"
@@ -45,7 +57,7 @@ async def analyze_meal_image(image_path: str) -> dict:
         )
         
         payload = {
-            "model": settings.OPENROUTER_MODEL,
+            "model": model,
             "messages": [
                 {
                     "role": "user",
@@ -65,7 +77,7 @@ async def analyze_meal_image(image_path: str) -> dict:
         
         async with httpx.AsyncClient(timeout=45.0) as client:
             response = await client.post(
-                f"{settings.OPENROUTER_BASE_URL}/chat/completions",
+                f"{base_url.rstrip('/')}/chat/completions",
                 headers=headers,
                 json=payload
             )
@@ -88,8 +100,9 @@ async def analyze_meal_image(image_path: str) -> dict:
             return analysis
             
     except Exception as ex:
-        logger.error(f"Error in OpenRouter Vision analysis: {ex}")
+        logger.error(f"Error in Vision analysis: {ex}")
         return get_fallback_analysis()
+
 
 def get_fallback_analysis() -> dict:
     return {

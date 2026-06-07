@@ -1312,6 +1312,9 @@
       <button class="nav-tab" data-tab="ai">
         <span class="tab-icon">🤖</span>Hermes IA
       </button>
+      <button class="nav-tab" data-tab="config">
+        <span class="tab-icon">⚙️</span>Configuración
+      </button>
     </nav>
 
     <!-- SECTIONS -->
@@ -1749,6 +1752,47 @@
       </div>
     </section>
 
+    <!-- 8. CONFIGURATION SECTION -->
+    <section id="sectionConfig" class="tab-section">
+      <div class="card">
+        <div class="card-header">
+          <div class="icon-badge" style="background: rgba(129, 140, 248, 0.1); color: var(--accent-indigo);">⚙️</div>
+          <div>
+            <h2>Configuración de Inteligencia Artificial</h2>
+            <p>Personaliza las llaves y modelos de análisis nutricional y de chat</p>
+          </div>
+        </div>
+        <form id="configForm" onsubmit="handleConfigSave(event)">
+          <div class="form-group">
+            <label class="form-label">Proveedor IA</label>
+            <select id="configProvider" class="form-select" onchange="handleProviderChange()">
+              <option value="openrouter">OpenRouter (Recomendado)</option>
+              <option value="kimi">Moonshot / Kimi 2.6</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">API Key</label>
+            <div style="position: relative; display: flex; align-items: center;">
+              <input type="password" id="configApiKey" class="form-input" placeholder="Ingresa tu API Key (sk-...)" style="padding-right: 48px;">
+              <button type="button" onclick="togglePasswordVisibility('configApiKey')" style="position: absolute; right: 12px; background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 1.1rem; padding: 4px;">👁️</button>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Nombre del Modelo</label>
+            <input type="text" id="configModel" class="form-input" placeholder="Ej. openrouter/auto o kimi-k2.6">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Base URL (Opcional)</label>
+            <input type="text" id="configBaseUrl" class="form-input" placeholder="Por defecto según proveedor">
+          </div>
+          <div style="display: flex; gap: 12px; margin-top: 20px;">
+            <button type="button" id="btnTestConfig" class="btn btn-ghost" onclick="testAIConnection()" style="flex: 1;">🧪 Probar Conexión</button>
+            <button type="submit" id="btnSaveConfig" class="btn btn-primary" style="flex: 1;">💾 Guardar Configuración</button>
+          </div>
+        </form>
+      </div>
+    </section>
+
   </div>
 
   <!-- TOAST CONTAINER -->
@@ -1758,6 +1802,8 @@
     // ===================================================================
     //  AZÚCAR CONTROL — PWA Cloud Application Logic
     // ===================================================================
+
+    let currentUser = null;
 
     // ===== UTILITY FUNCTIONS =====
     const $ = (sel) => document.querySelector(sel);
@@ -1947,6 +1993,7 @@
     async function initializeSession() {
       try {
         const user = await apiFetch('/api/v1/auth/me');
+        currentUser = user;
         $('#userNameDisplay').textContent = user.name;
         $('#userBanner').style.display = 'flex';
         
@@ -1954,6 +2001,9 @@
         const now = new Date();
         $('#metricDate').value = getTodayStr();
         $('#metricTime').value = `${padZero(now.getHours())}:${padZero(now.getMinutes())}`;
+        
+        // Populate config panel
+        populateConfigPanel(user);
         
         // Trigger loads
         await loadGlucoseData();
@@ -1979,6 +2029,123 @@
     function capitalize(str) {
       return str.charAt(0).toUpperCase() + str.slice(1);
     }
+
+    // ===== AI CONFIGURATION PANEL =====
+    function populateConfigPanel(user) {
+      $('#configProvider').value = user.ai_provider || 'openrouter';
+      $('#configApiKey').value = user.ai_api_key_masked || '';
+      $('#configModel').value = user.ai_model || '';
+      $('#configBaseUrl').value = user.ai_base_url || '';
+      handleProviderChange();
+    }
+
+    function handleProviderChange() {
+      const provider = $('#configProvider').value;
+      const modelInput = $('#configModel');
+      const urlInput = $('#configBaseUrl');
+      
+      if (provider === 'kimi') {
+        if (!modelInput.value || modelInput.value === 'openrouter/auto') {
+          modelInput.value = 'kimi-k2.6';
+        }
+        urlInput.placeholder = 'https://api.moonshot.cn/v1';
+      } else {
+        if (!modelInput.value || modelInput.value === 'kimi-k2.6') {
+          modelInput.value = 'openrouter/auto';
+        }
+        urlInput.placeholder = 'https://openrouter.ai/api/v1';
+      }
+    }
+
+    function togglePasswordVisibility(inputId) {
+      const input = $(`#${inputId}`);
+      if (input.type === 'password') {
+        input.type = 'text';
+      } else {
+        input.type = 'password';
+      }
+    }
+
+    async function testAIConnection() {
+      const provider = $('#configProvider').value;
+      let apiKey = $('#configApiKey').value.trim();
+      const model = $('#configModel').value.trim();
+      const baseUrl = $('#configBaseUrl').value.trim();
+      
+      if (!apiKey) {
+        showToast('Ingresa una API Key para probar.', 'warning');
+        return;
+      }
+      
+      // If they submitted the masked version, they can't test unless they write a new one
+      if (apiKey.startsWith('***') || apiKey === (currentUser && currentUser.ai_api_key_masked)) {
+        showToast('No se puede probar la conexión con una clave enmascarada. Escribe una nueva clave para verificarla.', 'warning');
+        return;
+      }
+      
+      const btn = $('#btnTestConfig');
+      const originalText = btn.textContent;
+      btn.textContent = '⏳ Probando...';
+      btn.disabled = true;
+      
+      try {
+        const res = await apiFetch('/api/v1/auth/test-ai', {
+          method: 'POST',
+          body: JSON.stringify({
+            ai_provider: provider,
+            ai_api_key: apiKey,
+            ai_model: model,
+            ai_base_url: baseUrl || null
+          })
+        });
+        
+        if (res.success) {
+          showToast(`Conexión exitosa: "${res.response}"`, 'success');
+        } else {
+          showToast(`Error de conexión: ${res.message}`, 'danger');
+          console.error(res.details);
+        }
+      } catch (err) {
+        showToast('Error de red al probar conexión: ' + err.message, 'danger');
+      } finally {
+        btn.textContent = originalText;
+        btn.disabled = false;
+      }
+    }
+
+    async function handleConfigSave(e) {
+      e.preventDefault();
+      const provider = $('#configProvider').value;
+      let apiKey = $('#configApiKey').value.trim();
+      const model = $('#configModel').value.trim();
+      const baseUrl = $('#configBaseUrl').value.trim();
+      
+      const btn = $('#btnSaveConfig');
+      const originalText = btn.textContent;
+      btn.textContent = '⏳ Guardando...';
+      btn.disabled = true;
+      
+      try {
+        const user = await apiFetch('/api/v1/auth/me/ai-settings', {
+          method: 'PUT',
+          body: JSON.stringify({
+            ai_provider: provider,
+            ai_api_key: apiKey,
+            ai_model: model,
+            ai_base_url: baseUrl || null
+          })
+        });
+        currentUser = user;
+        populateConfigPanel(user);
+        showToast('Configuración guardada exitosamente.', 'success');
+      } catch (err) {
+        showToast('Error al guardar la configuración: ' + err.message, 'danger');
+      } finally {
+        btn.textContent = originalText;
+        btn.disabled = false;
+      }
+    }
+
 
     // ===== 1. GLUCOSE ALERT PANEL =====
     function getGlucoseZone(val) {
@@ -2198,6 +2365,7 @@
           const card = document.createElement('div');
           card.className = 'meal-card';
           card.innerHTML = `
+            <button class="delete-btn" onclick="deleteMeal(${meal.id})" style="position: absolute; top: 12px; right: 12px; background: rgba(10, 14, 26, 0.6); backdrop-filter: blur(4px); border-radius: 50%; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; z-index: 5;" title="Eliminar Comida">🗑️</button>
             <img src="${meal.thumbnail_path}" alt="Plato" class="meal-img">
             <div class="meal-info">
               <span class="meal-date">${formatDate(meal.datetime)} a las ${formatTime(meal.datetime)}</span>
@@ -2230,6 +2398,17 @@
         });
       } catch (err) {
         console.error("Failed to load meals data", err);
+      }
+    }
+
+    async function deleteMeal(id) {
+      if (!confirm('¿Seguro que deseas eliminar esta comida de tu historial? Se eliminará permanentemente la imagen y los datos del servidor.')) return;
+      try {
+        await apiFetch(`/api/v1/meals/${id}`, { method: 'DELETE' });
+        showToast('Comida eliminada con éxito', 'success');
+        await loadMealsData();
+      } catch (err) {
+        showToast('Error al eliminar la comida: ' + err.message, 'danger');
       }
     }
 
