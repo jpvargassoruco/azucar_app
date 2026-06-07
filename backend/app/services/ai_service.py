@@ -106,9 +106,11 @@ async def query_hermes_agent(message: str, history: list, health_context: str, u
         
         payload = {
             "model": model,
-            "messages": messages,
-            "temperature": 0.7
+            "messages": messages
         }
+        if provider != "kimi":
+            payload["temperature"] = 0.7
+
         
         headers = {
             "Authorization": f"Bearer {api_key}",

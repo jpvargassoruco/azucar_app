@@ -1793,7 +1793,11 @@
           <div class="form-group">
             <label class="form-label">Base URL (Opcional)</label>
             <input type="text" id="configBaseUrl" class="form-input" placeholder="Por defecto según proveedor">
+            <span style="font-size: 0.75rem; color: var(--text-muted); display: block; margin-top: 4px;">
+              Kimi admite <strong>https://api.moonshot.cn/v1</strong> (nacional) o <strong>https://api.moonshot.ai/v1</strong> (internacional).
+            </span>
           </div>
+
           <div style="display: flex; gap: 12px; margin-top: 20px;">
             <button type="button" id="btnTestConfig" class="btn btn-ghost" onclick="testAIConnection()" style="flex: 1;">🧪 Probar Conexión</button>
             <button type="submit" id="btnSaveConfig" class="btn btn-primary" style="flex: 1;">💾 Guardar Configuración</button>
