@@ -1315,6 +1315,9 @@
       <button class="nav-tab" data-tab="config">
         <span class="tab-icon">⚙️</span>Configuración
       </button>
+      <button class="nav-tab" data-tab="meal-plan">
+        <span class="tab-icon">🥗</span>Menú IA
+      </button>
     </nav>
 
     <!-- SECTIONS -->
@@ -1541,6 +1544,44 @@
         <div id="mealsGallery" class="meals-gallery">
           <!-- Dynamic meals cards will be rendered here -->
         </div>
+      </div>
+    </section>
+
+    <!-- MEAL PLANNER SECTION -->
+    <section id="sectionMealPlan" class="tab-section">
+      <div class="card">
+        <div class="card-header">
+          <div class="icon-badge" style="background: rgba(167, 139, 250, 0.1); color: var(--accent-violet);">🥗</div>
+          <div>
+            <h2>Planificador de Menús IA</h2>
+            <p>Genera un plan de comidas personalizado según tu glucosa y preferencias</p>
+          </div>
+        </div>
+        
+        <form id="mealPlanForm" onsubmit="generateMealPlan(event)">
+          <div class="form-group">
+            <label class="form-label">Preferencias o Restricciones</label>
+            <textarea id="planPreferences" class="form-input" style="height: 60px; resize: none;" placeholder="Ej. Soy vegetariano, no me gusta el brócoli..."></textarea>
+          </div>
+          
+          <div class="form-group">
+            <label class="form-label">Cantidad de Comidas</label>
+            <select id="planNumMeals" class="form-select">
+              <option value="2">2 Comidas</option>
+              <option value="3" selected>3 Comidas</option>
+              <option value="4">4 Comidas</option>
+              <option value="5">5 Comidas</option>
+            </select>
+          </div>
+          
+          <button type="submit" id="btnGeneratePlan" class="btn btn-primary" style="width: 100%; margin-top: 10px;">
+            🤖 Generar Plan con Hermes
+          </button>
+        </form>
+      </div>
+      
+      <div id="mealPlanResult" style="display: none; margin-top: 20px;">
+        <!-- Generated plan will appear here -->
       </div>
     </section>
 
@@ -1804,8 +1845,90 @@
           </div>
         </form>
       </div>
+
+      <!-- FHIR Export Card -->
+      <div class="card" style="margin-top: 20px;">
+        <div class="card-header">
+          <div class="icon-badge" style="background: rgba(16, 185, 129, 0.1); color: var(--accent-emerald);">🏥</div>
+          <div>
+            <h2>Exportar Reporte Clínico (FHIR)</h2>
+            <p>Descarga tus datos en formato estándar HL7 FHIR R4</p>
+          </div>
+        </div>
+        <div style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 15px;">
+          Este archivo contiene tu historial de glucosa, comidas y ayunos en formato <strong>FHIR Bundle</strong>, compatible con sistemas de salud electrónicos (EHR) como Epic, Cerner o HAPI FHIR.
+        </div>
+        <button class="btn btn-primary" onclick="exportFHIRBundle()" style="width: 100%; background: var(--accent-emerald);">
+          📥 Descargar Bundle FHIR
+        </button>
+      </div>
     </section>
 
+  </div>
+
+  <!-- MEAL EDIT MODAL -->
+  <div id="mealEditModal" class="auth-overlay hidden" style="z-index: 2000;">
+    <div class="auth-box" style="max-width: 500px; padding: 24px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <h2 style="font-size: 1.5rem; margin: 0;">Editar Análisis de Comida</h2>
+        <button onclick="closeMealEditModal()" style="background: none; border: none; color: var(--text-muted); font-size: 1.5rem; cursor: pointer;">&times;</button>
+      </div>
+      
+      <input type="hidden" id="editMealId">
+      
+      <div class="form-group">
+        <label class="form-label">Notas o Alimentos (separados por coma)</label>
+        <input type="text" id="editMealItems" class="form-input">
+      </div>
+      
+      <div style="display: flex; gap: 12px;">
+        <div class="form-group" style="flex: 1;">
+          <label class="form-label">Calorías (kcal)</label>
+          <input type="number" id="editMealCalories" class="form-input">
+        </div>
+        <div class="form-group" style="flex: 1;">
+          <label class="form-label">Carbohidratos (g)</label>
+          <input type="number" id="editMealCarbs" class="form-input">
+        </div>
+      </div>
+      
+      <div style="display: flex; gap: 12px;">
+        <div class="form-group" style="flex: 1;">
+          <label class="form-label">Proteínas (g)</label>
+          <input type="number" id="editMealProtein" class="form-input">
+        </div>
+        <div class="form-group" style="flex: 1;">
+          <label class="form-label">Grasas (g)</label>
+          <input type="number" id="editMealFat" class="form-input">
+        </div>
+      </div>
+      
+      <div class="form-group">
+        <label class="form-label">Impacto Glucémico</label>
+        <select id="editMealImpact" class="form-select">
+          <option value="bajo">Bajo</option>
+          <option value="moderado">Moderado</option>
+          <option value="alto">Alto</option>
+        </select>
+      </div>
+      
+      <div class="form-group">
+        <label class="form-label">Recomendación</label>
+        <textarea id="editMealRec" class="form-input" style="height: 60px; resize: none;"></textarea>
+      </div>
+      
+      <button class="btn btn-primary" onclick="saveMealEdit()" style="width: 100%; margin-top: 10px;">💾 Guardar Cambios</button>
+      
+      <hr style="border: 1px solid rgba(255,255,255,0.05); margin: 20px 0;">
+      
+      <div>
+        <label class="form-label" style="color: var(--accent-violet);">🤖 Corregir con Hermes IA</label>
+        <div style="display: flex; gap: 8px;">
+          <input type="text" id="editMealCorrection" class="form-input" placeholder="Ej: Eso no es arroz, es coliflor...">
+          <button class="btn btn-primary" id="btnCorrectMeal" onclick="correctMealWithAI()" style="white-space: nowrap; background: var(--accent-violet);">Corregir</button>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- TOAST CONTAINER -->
@@ -2024,6 +2147,7 @@
         // Trigger loads
         await loadGlucoseData();
         await loadMealsData();
+        await loadLatestMealPlan();
         await loadFastingState();
         await loadHabits();
         await loadAlarms();
@@ -2159,6 +2283,43 @@
       } finally {
         btn.textContent = originalText;
         btn.disabled = false;
+      }
+    }
+
+    async function exportFHIRBundle() {
+      try {
+        const token = localStorage.getItem('azucar_token');
+        if (!token) throw new Error('No estás autenticado');
+        
+        // Use standard fetch because we want to download a file, not parse JSON directly
+        const res = await fetch('/api/v1/fhir/Bundle/export', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        if (!res.ok) {
+          throw new Error('No se pudo generar el Bundle FHIR');
+        }
+        
+        const blob = await res.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = url;
+        // Parse content-disposition if possible, or just default name
+        const cd = res.headers.get('Content-Disposition');
+        let filename = 'fhir_bundle.json';
+        if (cd && cd.includes('filename=')) {
+          filename = cd.split('filename=')[1].replace(/["']/g, '');
+        }
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        showToast('Bundle FHIR exportado con éxito.', 'success');
+      } catch (err) {
+        showToast('Error al exportar: ' + err.message, 'danger');
       }
     }
 
@@ -2362,9 +2523,12 @@
     }
 
     // ===== 3. MEALS IA SECTION =====
+    window.mealsMap = {};
+
     async function loadMealsData() {
       try {
         const meals = await apiFetch('/api/v1/meals/');
+        window.mealsMap = {};
         const gallery = $('#mealsGallery');
         gallery.innerHTML = '';
         
@@ -2374,6 +2538,7 @@
         }
         
         meals.forEach(meal => {
+          window.mealsMap[meal.id] = meal;
           const analysis = meal.ai_analysis || {};
           const items = analysis.food_items ? analysis.food_items.join(', ') : 'Comida';
           const impact = analysis.glycemic_impact || 'bajo';
@@ -2382,6 +2547,7 @@
           card.className = 'meal-card';
           card.innerHTML = `
             <button class="delete-btn" onclick="deleteMeal(${meal.id})" style="position: absolute; top: 12px; right: 12px; background: rgba(10, 14, 26, 0.6); backdrop-filter: blur(4px); border-radius: 50%; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; z-index: 5;" title="Eliminar Comida">🗑️</button>
+            <button class="edit-btn" onclick="openMealEditModal(${meal.id})" style="position: absolute; top: 12px; right: 50px; background: rgba(10, 14, 26, 0.6); backdrop-filter: blur(4px); border-radius: 50%; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; z-index: 5; color: white; border: none; cursor: pointer;" title="Editar Análisis">✏️</button>
             <img src="${meal.thumbnail_path}" alt="Plato" class="meal-img">
             <div class="meal-info">
               <span class="meal-date">${formatDate(meal.datetime)} a las ${formatTime(meal.datetime)}</span>
@@ -2417,6 +2583,91 @@
       }
     }
 
+    function openMealEditModal(id) {
+      const meal = window.mealsMap[id];
+      if (!meal) return;
+      
+      $('#editMealId').value = meal.id;
+      
+      const analysis = meal.ai_analysis || {};
+      $('#editMealItems').value = meal.notes || (analysis.food_items ? analysis.food_items.join(', ') : '');
+      $('#editMealCalories').value = analysis.calories_estimated || 0;
+      $('#editMealCarbs').value = analysis.carbs_g || 0;
+      $('#editMealProtein').value = analysis.protein_g || 0;
+      $('#editMealFat').value = analysis.fat_g || 0;
+      $('#editMealImpact').value = analysis.glycemic_impact || 'moderado';
+      $('#editMealRec').value = analysis.recommendation || '';
+      $('#editMealCorrection').value = '';
+      
+      $('#mealEditModal').classList.remove('hidden');
+    }
+
+    function closeMealEditModal() {
+      $('#mealEditModal').classList.add('hidden');
+    }
+
+    async function saveMealEdit() {
+      const id = $('#editMealId').value;
+      const notes = $('#editMealItems').value;
+      const analysis = {
+        food_items: notes.split(',').map(s => s.trim()).filter(Boolean),
+        calories_estimated: parseInt($('#editMealCalories').value) || 0,
+        carbs_g: parseInt($('#editMealCarbs').value) || 0,
+        protein_g: parseInt($('#editMealProtein').value) || 0,
+        fat_g: parseInt($('#editMealFat').value) || 0,
+        fiber_g: window.mealsMap[id]?.ai_analysis?.fiber_g || 0,
+        glycemic_impact: $('#editMealImpact').value,
+        recommendation: $('#editMealRec').value
+      };
+      
+      try {
+        await apiFetch(`/api/v1/meals/${id}`, {
+          method: 'PUT',
+          body: JSON.stringify({
+            notes: notes,
+            ai_analysis: analysis
+          })
+        });
+        showToast('Comida actualizada', 'success');
+        closeMealEditModal();
+        await loadMealsData();
+      } catch (err) {
+        showToast('Error al actualizar: ' + err.message, 'danger');
+      }
+    }
+
+    async function correctMealWithAI() {
+      const id = $('#editMealId').value;
+      const comment = $('#editMealCorrection').value.trim();
+      
+      if (!comment) {
+        showToast('Escribe un comentario para que Hermes sepa qué corregir.', 'warning');
+        return;
+      }
+      
+      const btn = $('#btnCorrectMeal');
+      const originalText = btn.textContent;
+      btn.textContent = '⏳...';
+      btn.disabled = true;
+      
+      try {
+        await apiFetch(`/api/v1/meals/${id}/correct`, {
+          method: 'POST',
+          body: JSON.stringify({
+            correction_comment: comment
+          })
+        });
+        showToast('Hermes ha corregido el análisis exitosamente.', 'success');
+        closeMealEditModal();
+        await loadMealsData();
+      } catch (err) {
+        showToast('Error al corregir con IA: ' + err.message, 'danger');
+      } finally {
+        btn.textContent = originalText;
+        btn.disabled = false;
+      }
+    }
+
     async function deleteMeal(id) {
       if (!confirm('¿Seguro que deseas eliminar esta comida de tu historial? Se eliminará permanentemente la imagen y los datos del servidor.')) return;
       try {
@@ -2426,6 +2677,84 @@
       } catch (err) {
         showToast('Error al eliminar la comida: ' + err.message, 'danger');
       }
+    }
+
+    // ===== 3.1 MEAL PLANNER SECTION =====
+    async function generateMealPlan(e) {
+      e.preventDefault();
+      const btn = $('#btnGeneratePlan');
+      const originalText = btn.textContent;
+      btn.textContent = '⏳ Generando plan...';
+      btn.disabled = true;
+
+      const prefs = $('#planPreferences').value;
+      const numMeals = parseInt($('#planNumMeals').value) || 3;
+
+      try {
+        const plan = await apiFetch('/api/v1/meal-plan/generate', {
+          method: 'POST',
+          body: JSON.stringify({ preferences: prefs, num_meals: numMeals })
+        });
+        showToast('Plan de comidas generado con éxito.', 'success');
+        renderMealPlan(plan.plan_data);
+      } catch (err) {
+        showToast('Error al generar el plan: ' + err.message, 'danger');
+      } finally {
+        btn.textContent = originalText;
+        btn.disabled = false;
+      }
+    }
+
+    async function loadLatestMealPlan() {
+      try {
+        const plan = await apiFetch('/api/v1/meal-plan/latest');
+        if (plan && plan.plan_data) {
+          renderMealPlan(plan.plan_data);
+        }
+      } catch (err) {
+        // Not found is fine
+        if (!err.message.includes('404')) {
+          console.error("Failed to load meal plan", err);
+        }
+      }
+    }
+
+    function renderMealPlan(planData) {
+      const container = $('#mealPlanResult');
+      container.style.display = 'block';
+      
+      let html = `<div style="background: rgba(167, 139, 250, 0.1); border: 1px solid var(--border-glass); padding: 15px; border-radius: var(--radius-lg); margin-bottom: 20px;">
+        <h3 style="color: var(--accent-violet); margin-top: 0;">Resumen del Día (${planData.plan_date})</h3>
+        <p style="margin: 5px 0;">Calorías Totales: <strong>${planData.daily_summary.total_calories} kcal</strong></p>
+        <p style="margin: 5px 0;">Carbohidratos: <strong>${planData.daily_summary.total_carbs_g}g</strong></p>
+      </div>`;
+
+      planData.meals.forEach(meal => {
+        const impactColors = { 'bajo': '#34d399', 'moderado': '#fbbf24', 'alto': '#fb7185' };
+        html += `<div class="card" style="margin-bottom: 15px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-glass); padding-bottom: 10px; margin-bottom: 10px;">
+            <h4 style="margin: 0; text-transform: capitalize; color: var(--accent-indigo);">${meal.meal_type} <span style="color: var(--text-muted); font-size: 0.8rem;">(${meal.time_suggestion})</span></h4>
+            <span style="font-size: 0.75rem; background: rgba(255,255,255,0.05); padding: 2px 8px; border-radius: 10px; color: ${impactColors[meal.glycemic_impact] || 'var(--text-primary)'}; border: 1px solid currentColor;">Impacto: ${meal.glycemic_impact}</span>
+          </div>
+          <p style="margin: 10px 0; font-weight: 500;">${meal.description}</p>
+          <div style="display: flex; gap: 15px; font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 10px;">
+            <span>🔥 ${meal.estimated_calories} kcal</span>
+            <span>🌾 ${meal.estimated_carbs_g}g carbs</span>
+          </div>
+          <p style="font-size: 0.8rem; color: var(--text-muted); border-left: 2px solid var(--accent-cyan); padding-left: 8px;">${meal.reasoning}</p>
+        </div>`;
+      });
+
+      if (planData.tips && planData.tips.length > 0) {
+        html += `<div style="background: rgba(34, 211, 238, 0.05); padding: 15px; border-radius: var(--radius-lg); margin-top: 20px;">
+          <h4 style="color: var(--accent-cyan); margin-top: 0; margin-bottom: 10px;">💡 Consejos de Hermes</h4>
+          <ul style="margin: 0; padding-left: 20px; color: var(--text-secondary); font-size: 0.85rem;">
+            ${planData.tips.map(tip => `<li style="margin-bottom: 5px;">${tip}</li>`).join('')}
+          </ul>
+        </div>`;
+      }
+
+      container.innerHTML = html;
     }
 
     async function handleMealUpload(e) {

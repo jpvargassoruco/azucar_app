@@ -12,6 +12,13 @@ class AIAnalysisDetail(BaseModel):
     glycemic_impact: str  # "bajo", "moderado", "alto"
     recommendation: str
 
+class MealUpdateRequest(BaseModel):
+    notes: Optional[str] = None
+    ai_analysis: Optional[AIAnalysisDetail] = None
+
+class MealCorrectionRequest(BaseModel):
+    correction_comment: str
+
 class MealEntryResponse(BaseModel):
     id: int
     user_id: int

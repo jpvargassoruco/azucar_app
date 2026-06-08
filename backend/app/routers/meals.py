@@ -8,10 +8,11 @@ from typing import List, Optional
 from app.database import get_db
 from app.models.meal import MealEntry
 from app.models.user import User
-from app.schemas.meal import MealEntryResponse
+from app.schemas.meal import MealEntryResponse, MealUpdateRequest, MealCorrectionRequest
 from app.auth.dependencies import get_current_user
 from app.services.image_service import compress_to_thumbnail
-from app.services.meal_analyzer import analyze_meal_image
+from app.services.meal_analyzer import analyze_meal_image, correct_meal_analysis
+from app.services.ai_service import get_user_health_context
 
 router = APIRouter()
 
@@ -61,8 +62,11 @@ async def upload_meal(
             content = await photo.read()
             f.write(content)
             
+        # Get health context
+        health_context = await get_user_health_context(db, current_user)
+        
         # Run Vision API analysis on resolved AI provider
-        analysis_result = await analyze_meal_image(temp_path, user=current_user)
+        analysis_result = await analyze_meal_image(temp_path, user=current_user, health_context=health_context)
         
         # Compress and save thumbnail
         thumbnail_path = compress_to_thumbnail(temp_path, UPLOAD_DIR, f"{unique_id}{ext}")
@@ -130,3 +134,60 @@ async def delete_meal(
     await db.commit()
     return
 
+@router.put("/{meal_id}", response_model=MealEntryResponse)
+async def update_meal(
+    meal_id: int,
+    meal_in: MealUpdateRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Update a meal entry's manual fields or AI analysis."""
+    result = await db.execute(
+        select(MealEntry)
+        .filter(MealEntry.id == meal_id, MealEntry.user_id == current_user.id)
+    )
+    meal = result.scalars().first()
+    if not meal:
+        raise HTTPException(status_code=404, detail="Meal not found")
+        
+    if meal_in.notes is not None:
+        meal.notes = meal_in.notes
+    if meal_in.ai_analysis is not None:
+        meal.ai_analysis = meal_in.ai_analysis.dict()
+        
+    await db.commit()
+    await db.refresh(meal)
+    return meal
+
+@router.post("/{meal_id}/correct", response_model=MealEntryResponse)
+async def correct_meal(
+    meal_id: int,
+    correction_in: MealCorrectionRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Use AI to correct a meal's analysis based on user feedback."""
+    result = await db.execute(
+        select(MealEntry)
+        .filter(MealEntry.id == meal_id, MealEntry.user_id == current_user.id)
+    )
+    meal = result.scalars().first()
+    if not meal:
+        raise HTTPException(status_code=404, detail="Meal not found")
+        
+    if not meal.ai_analysis:
+        raise HTTPException(status_code=400, detail="Meal has no existing analysis to correct")
+        
+    health_context = await get_user_health_context(db, current_user)
+    
+    corrected_analysis = await correct_meal_analysis(
+        current_analysis=meal.ai_analysis,
+        correction_comment=correction_in.correction_comment,
+        user=current_user,
+        health_context=health_context
+    )
+    
+    meal.ai_analysis = corrected_analysis
+    await db.commit()
+    await db.refresh(meal)
+    return meal

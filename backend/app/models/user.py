@@ -27,6 +27,7 @@ class User(Base):
     habit_logs: Mapped[List["HabitLog"]] = relationship(back_populates="user", cascade="all, delete-orphan")
     alarms: Mapped[List["Alarm"]] = relationship(back_populates="user", cascade="all, delete-orphan")
     meals: Mapped[List["MealEntry"]] = relationship(back_populates="user", cascade="all, delete-orphan")
+    meal_plans: Mapped[List["MealPlan"]] = relationship(back_populates="user", cascade="all, delete-orphan")
     push_subscriptions: Mapped[List["PushSubscription"]] = relationship(back_populates="user", cascade="all, delete-orphan")
 
     @property

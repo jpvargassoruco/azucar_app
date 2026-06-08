@@ -6,6 +6,7 @@ from sqlalchemy.future import select
 from app.models.glucose import GlucoseReading
 from app.models.habit import HabitLog
 from app.models.fasting import FastingSession
+from app.models.meal import MealEntry
 from datetime import date, datetime
 import logging
 
@@ -55,6 +56,24 @@ async def get_user_health_context(db: AsyncSession, user: User) -> str:
     if active_fast:
         fast_str = f"Ayuno activo iniciado a las {active_fast.start_time.strftime('%Y-%m-%d %H:%M')} bajo el protocolo {active_fast.protocol}.\n"
         
+    # 4. Fetch latest 3 meals
+    m_result = await db.execute(
+        select(MealEntry)
+        .filter(MealEntry.user_id == user.id)
+        .order_by(MealEntry.datetime.desc())
+        .limit(3)
+    )
+    meals = m_result.scalars().all()
+    meals_str = ""
+    if meals:
+        for m in meals:
+            dt_str = m.datetime.strftime("%Y-%m-%d %H:%M")
+            items = m.ai_analysis.get('food_items', []) if m.ai_analysis else []
+            items_str = ", ".join(items) if items else "Comida"
+            meals_str += f"- {dt_str}: {m.notes or items_str}\n"
+    else:
+        meals_str = "No hay comidas registradas recientemente.\n"
+
     context = (
         f"INFORMACIÓN DEL PACIENTE:\n"
         f"- Nombre: {user.name}\n"
@@ -63,6 +82,7 @@ async def get_user_health_context(db: AsyncSession, user: User) -> str:
         f"ÚLTIMAS LECTURAS DE GLUCOSA:\n{readings_str}\n"
         f"ESTADO DE HÁBITOS DIARIOS DE HOY:\n{habits_str}\n"
         f"ESTADO DE AYUNO INTERMITENTE:\n{fast_str}\n"
+        f"ÚLTIMAS COMIDAS:\n{meals_str}\n"
         f"Instrucciones: Utiliza este contexto para dar recomendaciones de salud personalizadas, "
         f"científicas y alentadoras en Español. Si los niveles de glucosa superan 250 mg/dL, "
         f"recomienda fuertemente la hidratación con agua, evitar ejercicio pesado de inmediato "
