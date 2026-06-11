@@ -57,22 +57,25 @@ def meal_to_nutrition_intake(meal: MealEntry, patient_ref: str) -> NutritionInta
     items = analysis.get("food_items", [])
     calories = analysis.get("calories_estimated", 0)
     
+    desc = ", ".join(items) if items else (meal.notes or "Comida")
+    
+    amount_data = None
+    if calories > 0:
+        amount_data = {"value": calories, "unit": "kcal", "system": "http://unitsofmeasure.org", "code": "kcal"}
+        
+    consumed_item = NutritionIntakeConsumedItem(
+        type={"text": desc},
+        amount=amount_data
+    )
+    
     ni = NutritionIntake(
         status="completed",
         code={"coding": [{"system": "http://snomed.info/sct", "code": "226379006", "display": "Food intake"}]},
         subject={"reference": patient_ref},
-        occurrenceDateTime=meal.datetime.isoformat()
+        occurrenceDateTime=meal.datetime.isoformat(),
+        consumedItem=[consumed_item]
     )
     
-    if items or calories > 0:
-        desc = ", ".join(items) if items else (meal.notes or "Meal")
-        ni.consumedItem = [
-            NutritionIntakeConsumedItem(
-                type={"text": desc},
-                amount={"value": calories, "unit": "kcal", "system": "http://unitsofmeasure.org", "code": "kcal"}
-            )
-        ]
-        
     impact = analysis.get("glycemic_impact")
     if impact:
         # Custom extension for glycemic impact
