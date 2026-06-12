@@ -64,7 +64,7 @@ def meal_to_nutrition_intake(meal: MealEntry, patient_ref: str) -> NutritionInta
         amount_data = {"value": calories, "unit": "kcal", "system": "http://unitsofmeasure.org", "code": "kcal"}
         
     consumed_item = NutritionIntakeConsumedItem(
-        type={"text": desc},
+        nutritionProduct={"concept": {"text": desc}},
         amount=amount_data
     )
     
