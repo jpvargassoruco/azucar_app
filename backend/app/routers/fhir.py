@@ -9,11 +9,13 @@ from app.models.user import User
 from app.models.glucose import GlucoseReading
 from app.models.meal import MealEntry
 from app.models.fasting import FastingSession
+from app.models.medication import Medication, MedicationLog
 from app.auth.dependencies import get_current_user
 from app.services.fhir_serializer import (
     user_to_patient,
     glucose_to_observation,
     meal_to_nutrition_intake,
+    medication_log_to_statement,
     build_patient_bundle
 )
 
@@ -65,6 +67,28 @@ async def get_nutrition_intakes(
     intakes = [meal_to_nutrition_intake(m, patient_ref).dict(exclude_none=True) for m in meals]
     return intakes
 
+@router.get("/MedicationStatement", response_model=None)
+async def get_medication_statements(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Returns medication/supplement logs as FHIR MedicationStatement resources."""
+    result = await db.execute(
+        select(MedicationLog, Medication)
+        .join(Medication, MedicationLog.medication_id == Medication.id)
+        .filter(MedicationLog.user_id == current_user.id)
+        .order_by(MedicationLog.date.desc())
+        .limit(100)
+    )
+    rows = result.all()
+
+    patient_ref = f"Patient/{current_user.id}"
+    statements = [
+        medication_log_to_statement(log, medication, patient_ref).dict(exclude_none=True)
+        for log, medication in rows
+    ]
+    return statements
+
 @router.get("/Bundle", response_model=None)
 async def get_bundle(
     db: AsyncSession = Depends(get_db),
@@ -80,8 +104,15 @@ async def get_bundle(
     
     f_res = await db.execute(select(FastingSession).filter(FastingSession.user_id == current_user.id))
     fastings = f_res.scalars().all()
-    
-    bundle = build_patient_bundle(current_user, readings, meals, fastings)
+
+    ml_res = await db.execute(
+        select(MedicationLog, Medication)
+        .join(Medication, MedicationLog.medication_id == Medication.id)
+        .filter(MedicationLog.user_id == current_user.id)
+    )
+    medication_logs = ml_res.all()
+
+    bundle = build_patient_bundle(current_user, readings, meals, fastings, medication_logs)
     return bundle.dict(exclude_none=True)
 
 @router.get("/Bundle/export", response_class=Response)
@@ -99,9 +130,16 @@ async def export_bundle(
     
     f_res = await db.execute(select(FastingSession).filter(FastingSession.user_id == current_user.id))
     fastings = f_res.scalars().all()
-    
-    bundle = build_patient_bundle(current_user, readings, meals, fastings)
-    
+
+    ml_res = await db.execute(
+        select(MedicationLog, Medication)
+        .join(Medication, MedicationLog.medication_id == Medication.id)
+        .filter(MedicationLog.user_id == current_user.id)
+    )
+    medication_logs = ml_res.all()
+
+    bundle = build_patient_bundle(current_user, readings, meals, fastings, medication_logs)
+
     # Return as downloadable JSON file
     return Response(
         content=bundle.json(exclude_none=True, indent=2),

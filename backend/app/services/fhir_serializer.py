@@ -1,11 +1,12 @@
 from datetime import datetime, timezone
 import uuid
-from typing import List
+from typing import List, Tuple
 
 from fhir.resources.patient import Patient
 from fhir.resources.observation import Observation, ObservationComponent
 from fhir.resources.nutritionintake import NutritionIntake, NutritionIntakeConsumedItem
 from fhir.resources.condition import Condition
+from fhir.resources.medicationstatement import MedicationStatement
 from fhir.resources.bundle import Bundle, BundleEntry
 from fhir.resources.extension import Extension
 
@@ -13,6 +14,7 @@ from app.models.user import User
 from app.models.glucose import GlucoseReading
 from app.models.meal import MealEntry
 from app.models.fasting import FastingSession
+from app.models.medication import Medication, MedicationLog
 
 def generate_urn_uuid() -> str:
     return f"urn:uuid:{uuid.uuid4()}"
@@ -103,7 +105,30 @@ def fasting_to_observation(session: FastingSession, patient_ref: str) -> Observa
         
     return obs
 
-def build_patient_bundle(user: User, readings: List[GlucoseReading], meals: List[MealEntry], fastings: List[FastingSession]) -> Bundle:
+def medication_log_to_statement(log: MedicationLog, medication: Medication, patient_ref: str) -> MedicationStatement:
+    stmt = MedicationStatement(
+        status="completed" if log.status == "taken" else "not-taken",
+        medication={"concept": {"text": medication.name}},
+        subject={"reference": patient_ref},
+        effectiveDateTime=(log.marked_at or datetime.combine(log.date, datetime.min.time())).isoformat(),
+    )
+
+    stmt.extension = [
+        Extension(
+            url="http://azucar.aeisoftware.com/fhir/StructureDefinition/medication-kind",
+            valueString=medication.kind
+        )
+    ]
+
+    return stmt
+
+def build_patient_bundle(
+    user: User,
+    readings: List[GlucoseReading],
+    meals: List[MealEntry],
+    fastings: List[FastingSession],
+    medication_logs: List[Tuple[MedicationLog, Medication]] = []
+) -> Bundle:
     bundle = Bundle(type="collection", entry=[])
     
     # 1. Patient
@@ -133,5 +158,10 @@ def build_patient_bundle(user: User, readings: List[GlucoseReading], meals: List
     for f in fastings:
         obs = fasting_to_observation(f, patient_uuid)
         bundle.entry.append(BundleEntry(fullUrl=generate_urn_uuid(), resource=obs))
-        
+
+    # 6. Medication/Supplement Logs
+    for log, medication in medication_logs:
+        stmt = medication_log_to_statement(log, medication, patient_uuid)
+        bundle.entry.append(BundleEntry(fullUrl=generate_urn_uuid(), resource=stmt))
+
     return bundle

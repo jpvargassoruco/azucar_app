@@ -29,6 +29,7 @@ class User(Base):
     meals: Mapped[List["MealEntry"]] = relationship(back_populates="user", cascade="all, delete-orphan")
     meal_plans: Mapped[List["MealPlan"]] = relationship(back_populates="user", cascade="all, delete-orphan")
     push_subscriptions: Mapped[List["PushSubscription"]] = relationship(back_populates="user", cascade="all, delete-orphan")
+    medications: Mapped[List["Medication"]] = relationship(back_populates="user", cascade="all, delete-orphan")
 
     @property
     def has_ai_key(self) -> bool:

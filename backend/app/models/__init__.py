@@ -7,6 +7,7 @@ from app.models.alarm import Alarm
 from app.models.meal import MealEntry
 from app.models.push_subscription import PushSubscription
 from app.models.meal_plan import MealPlan
+from app.models.medication import Medication, MedicationLog
 
 __all__ = [
     "Base",
@@ -18,4 +19,6 @@ __all__ = [
     "MealEntry",
     "PushSubscription",
     "MealPlan",
+    "Medication",
+    "MedicationLog",
 ]

@@ -11,6 +11,7 @@ from app.routers.notifications import router as notifications_router
 from app.routers.ai import router as ai_router
 from app.routers.meal_plan import router as meal_plan_router
 from app.routers.fhir import router as fhir_router
+from app.routers.medications import router as medications_router
 
 app = FastAPI(
     title="Azúcar Control API",
@@ -41,6 +42,7 @@ app.include_router(notifications_router, prefix="/api/v1/notifications", tags=["
 app.include_router(ai_router, prefix="/api/v1/ai", tags=["Asistente IA"])
 app.include_router(meal_plan_router, prefix="/api/v1/meal-plan", tags=["Planificador IA"])
 app.include_router(fhir_router, prefix="/api/v1/fhir", tags=["FHIR/HL7"])
+app.include_router(medications_router, prefix="/api/v1/medications", tags=["Medicamentos"])
 
 @app.get("/api/health", tags=["Health"])
 async def health_check():
