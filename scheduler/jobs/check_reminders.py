@@ -106,5 +106,74 @@ async def check_alarms():
         if redis_client:
             await redis_client.close()
 
+async def check_medications():
+    """
+    Checks if there are any active medications/supplements with a dose scheduled
+    for the current local time (Bolivia, UTC-4) and weekday, and queues push notifications.
+    """
+    if not DATABASE_URL:
+        logger.error("DATABASE_URL env variable is not set. Exiting.")
+        return
+
+    tz_bolivia = timezone(timedelta(hours=-4))
+    now_local = datetime.now(timezone.utc).astimezone(tz_bolivia)
+    current_time_str = now_local.strftime("%H:%M")
+    current_weekday = now_local.weekday()
+
+    logger.info(f"Checking medications matching local time: {current_time_str} (weekday {current_weekday})")
+
+    conn = None
+    redis_client = None
+    try:
+        conn = await asyncpg.connect(DATABASE_URL)
+        redis_client = Redis.from_url(REDIS_URL)
+
+        query = """
+            SELECT m.id, m.user_id, m.name, m.kind, m.times, m.days_of_week, u.name AS user_name
+            FROM medications m
+            JOIN users u ON m.user_id = u.id
+            WHERE m.is_active = true
+        """
+        active_medications = await conn.fetch(query)
+
+        matching = [
+            row for row in active_medications
+            if current_weekday in json.loads(row["days_of_week"]) and current_time_str in json.loads(row["times"])
+        ]
+
+        if not matching:
+            logger.info("No active medications matched the current minute.")
+            return
+
+        logger.info(f"Found {len(matching)} matching medication doses.")
+
+        for row in matching:
+            user_id = row["user_id"]
+            name = row["name"]
+            kind = row["kind"]
+            user_name = row["user_name"]
+
+            emoji = "💊" if kind == "medication" else "🌿"
+            label = "medicamento" if kind == "medication" else "suplemento"
+
+            job_payload = {
+                "user_id": user_id,
+                "title": f"{emoji} Tomar {name}",
+                "body": f"Hola {user_name}, es momento de tomar tu {label} {name}.",
+                "url": "/#medications"
+            }
+
+            await redis_client.rpush("notifications_queue", json.dumps(job_payload))
+            logger.info(f"Queued medication notification for user ID {user_id} (Medication: {name})")
+
+    except Exception as ex:
+        logger.error(f"Error checking medications: {ex}")
+    finally:
+        if conn:
+            await conn.close()
+        if redis_client:
+            await redis_client.close()
+
 if __name__ == "__main__":
     asyncio.run(check_alarms())
+    asyncio.run(check_medications())

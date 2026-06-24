@@ -1309,6 +1309,9 @@
       <button class="nav-tab" data-tab="habits">
         <span class="tab-icon">✓</span>Hábitos
       </button>
+      <button class="nav-tab" data-tab="medications">
+        <span class="tab-icon">💊</span>Medicamentos
+      </button>
       <button class="nav-tab" data-tab="ai">
         <span class="tab-icon">🤖</span>Hermes IA
       </button>
@@ -1774,6 +1777,80 @@
       </div>
     </section>
 
+    <!-- 6.5. MEDICATIONS/SUPPLEMENTS SECTION -->
+    <section id="sectionMedications" class="tab-section">
+      <div class="card">
+        <div class="card-header">
+          <div class="icon-badge" style="background: rgba(251, 113, 133, 0.1); color: var(--accent-rose);">💊</div>
+          <div>
+            <h2>Dosis de Hoy</h2>
+            <p>Marca cada dosis como tomada u omitida a su horario</p>
+          </div>
+        </div>
+        <div class="habits-list" id="todayDosesList">
+          <p style="color:var(--text-muted); text-align:center;">No hay dosis programadas para hoy.</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="icon-badge" style="background: rgba(167, 139, 250, 0.1); color: var(--accent-violet);">📋</div>
+          <div>
+            <h2>Mis Medicamentos y Suplementos</h2>
+            <p>Configura nombre, dosis, horarios y días de la semana</p>
+          </div>
+        </div>
+
+        <div style="display:flex; gap:8px; margin-bottom:16px;">
+          <button type="button" class="btn btn-sm btn-primary" id="medFilterAll" onclick="filterMedicationsByKind('all')">Todos</button>
+          <button type="button" class="btn btn-sm" id="medFilterMedication" onclick="filterMedicationsByKind('medication')">💊 Medicamentos</button>
+          <button type="button" class="btn btn-sm" id="medFilterSupplement" onclick="filterMedicationsByKind('supplement')">🌿 Suplementos</button>
+        </div>
+
+        <div class="habits-list" id="medicationsList" style="margin-bottom: 20px;">
+          <p style="color:var(--text-muted); text-align:center;">No hay medicamentos configurados aún.</p>
+        </div>
+
+        <form id="medicationForm" onsubmit="createMedication(event)">
+          <div class="form-group">
+            <label class="form-label">Nombre</label>
+            <input type="text" id="medName" class="form-input" placeholder="Ej. Metformina" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Tipo</label>
+            <select id="medKind" class="form-select">
+              <option value="medication">💊 Medicamento</option>
+              <option value="supplement">🌿 Suplemento</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Dosis</label>
+            <input type="text" id="medDosage" class="form-input" placeholder="Ej. 850mg, 1 cápsula">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Horarios</label>
+            <div id="medTimesContainer" style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:8px;">
+              <input type="time" class="form-input med-time-input" style="width:120px;" value="08:00">
+            </div>
+            <button type="button" class="btn btn-sm" onclick="addMedTimeInput()">+ Agregar hora</button>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Días Activos</label>
+            <div style="display:flex; flex-wrap:wrap; gap:10px;">
+              <label><input type="checkbox" class="med-day-checkbox" value="0" checked> Lun</label>
+              <label><input type="checkbox" class="med-day-checkbox" value="1" checked> Mar</label>
+              <label><input type="checkbox" class="med-day-checkbox" value="2" checked> Mié</label>
+              <label><input type="checkbox" class="med-day-checkbox" value="3" checked> Jue</label>
+              <label><input type="checkbox" class="med-day-checkbox" value="4" checked> Vie</label>
+              <label><input type="checkbox" class="med-day-checkbox" value="5" checked> Sáb</label>
+              <label><input type="checkbox" class="med-day-checkbox" value="6" checked> Dom</label>
+            </div>
+          </div>
+          <button type="submit" class="btn btn-primary">Agregar</button>
+        </form>
+      </div>
+    </section>
+
     <!-- 7. AI ASSISTANT SECTION -->
     <section id="sectionAi" class="tab-section">
       <div class="card" style="height: 580px; display: flex; flex-direction: column; padding: 24px;">
@@ -2151,6 +2228,8 @@
         await loadFastingState();
         await loadHabits();
         await loadAlarms();
+        await loadMedications();
+        await loadTodayDoses();
       } catch (err) {
         console.error("Initialization failed", err);
       }
@@ -3347,6 +3426,170 @@
 
       if (pct === 100 && completed > 0) {
         showToast('🏆 ¡Felicidades! Completaste todos tus hábitos diarios.', 'success');
+      }
+    }
+
+    // ===== 6.5. MEDICATIONS / SUPPLEMENTS =====
+    let allMedications = [];
+    let medicationsFilter = 'all';
+    const DAY_LABELS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+
+    async function loadMedications() {
+      try {
+        allMedications = await apiFetch('/api/v1/medications/');
+        renderMedicationsList();
+      } catch (err) {
+        console.error("Failed to load medications", err);
+      }
+    }
+
+    function filterMedicationsByKind(kind) {
+      medicationsFilter = kind;
+      $('#medFilterAll').classList.toggle('btn-primary', kind === 'all');
+      $('#medFilterMedication').classList.toggle('btn-primary', kind === 'medication');
+      $('#medFilterSupplement').classList.toggle('btn-primary', kind === 'supplement');
+      renderMedicationsList();
+    }
+
+    function renderMedicationsList() {
+      const container = $('#medicationsList');
+      const items = medicationsFilter === 'all'
+        ? allMedications
+        : allMedications.filter(m => m.kind === medicationsFilter);
+
+      if (items.length === 0) {
+        container.innerHTML = `<p style="color:var(--text-muted); text-align:center;">No hay medicamentos configurados aún.</p>`;
+        return;
+      }
+
+      container.innerHTML = '';
+      items.forEach(med => {
+        const days = med.days_of_week.slice().sort().map(d => DAY_LABELS[d]).join(', ');
+        const card = document.createElement('div');
+        card.className = 'habit-item';
+        card.style.cursor = 'default';
+        card.innerHTML = `
+          <div class="habit-content-side">
+            <span class="tab-icon">${med.kind === 'medication' ? '💊' : '🌿'}</span>
+            <div>
+              <div class="habit-text">${med.name}${med.dosage ? ' — ' + med.dosage : ''}</div>
+              <div style="font-size:0.75rem; color:var(--text-muted);">${med.times.join(', ')} · ${days}</div>
+            </div>
+          </div>
+          <button class="delete-btn" onclick="deleteMedication(${med.id})" title="Eliminar">🗑️</button>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    function addMedTimeInput() {
+      const container = $('#medTimesContainer');
+      const input = document.createElement('input');
+      input.type = 'time';
+      input.className = 'form-input med-time-input';
+      input.style.width = '120px';
+      input.value = '08:00';
+      container.appendChild(input);
+    }
+
+    async function createMedication(event) {
+      event.preventDefault();
+
+      const times = Array.from($$('.med-time-input')).map(el => el.value).filter(Boolean);
+      const daysOfWeek = Array.from($$('.med-day-checkbox')).filter(el => el.checked).map(el => parseInt(el.value));
+
+      if (times.length === 0 || daysOfWeek.length === 0) {
+        showToast('Agrega al menos un horario y un día activo.', 'warning');
+        return;
+      }
+
+      try {
+        await apiFetch('/api/v1/medications/', {
+          method: 'POST',
+          body: JSON.stringify({
+            name: $('#medName').value,
+            kind: $('#medKind').value,
+            dosage: $('#medDosage').value || null,
+            times,
+            days_of_week: daysOfWeek,
+            is_active: true
+          })
+        });
+        showToast('Medicamento agregado', 'success');
+        $('#medicationForm').reset();
+        $('#medTimesContainer').innerHTML = '<input type="time" class="form-input med-time-input" style="width:120px;" value="08:00">';
+        $$('.med-day-checkbox').forEach(el => el.checked = true);
+        await loadMedications();
+        await loadTodayDoses();
+      } catch (err) {
+        showToast('Error al agregar: ' + err.message, 'danger');
+      }
+    }
+
+    async function deleteMedication(id) {
+      if (!confirm('¿Seguro que deseas eliminar este medicamento/suplemento?')) return;
+      try {
+        await apiFetch(`/api/v1/medications/${id}`, { method: 'DELETE' });
+        showToast('Eliminado con éxito', 'success');
+        await loadMedications();
+        await loadTodayDoses();
+      } catch (err) {
+        showToast('Error al eliminar: ' + err.message, 'danger');
+      }
+    }
+
+    async function loadTodayDoses() {
+      try {
+        const slots = await apiFetch('/api/v1/medications/today');
+        renderTodayDoses(slots);
+      } catch (err) {
+        console.error("Failed to load today's doses", err);
+      }
+    }
+
+    function renderTodayDoses(slots) {
+      const container = $('#todayDosesList');
+      if (slots.length === 0) {
+        container.innerHTML = `<p style="color:var(--text-muted); text-align:center;">No hay dosis programadas para hoy.</p>`;
+        return;
+      }
+
+      container.innerHTML = '';
+      slots.forEach(slot => {
+        const card = document.createElement('div');
+        card.className = 'habit-item';
+        card.style.cursor = 'default';
+        if (slot.status === 'taken') card.classList.add('completed');
+
+        const statusLabel = slot.status === 'taken' ? ' (Tomado)' : slot.status === 'skipped' ? ' (Omitido)' : '';
+        card.innerHTML = `
+          <div class="habit-content-side">
+            <span class="tab-icon">${slot.kind === 'medication' ? '💊' : '🌿'}</span>
+            <span class="habit-text">${slot.scheduled_time} — ${slot.name}${slot.dosage ? ' (' + slot.dosage + ')' : ''}${statusLabel}</span>
+          </div>
+          <div style="display:flex; gap:6px;">
+            <button class="btn btn-sm btn-success" onclick="markDose(${slot.medication_id}, '${slot.scheduled_time}', 'taken')">✓</button>
+            <button class="btn btn-sm btn-danger" onclick="markDose(${slot.medication_id}, '${slot.scheduled_time}', 'skipped')">✗</button>
+          </div>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    async function markDose(medicationId, time, status) {
+      try {
+        await apiFetch('/api/v1/medications/log', {
+          method: 'POST',
+          body: JSON.stringify({
+            medication_id: medicationId,
+            date: getTodayStr(),
+            scheduled_time: time,
+            status
+          })
+        });
+        await loadTodayDoses();
+      } catch (err) {
+        showToast('Error al registrar dosis: ' + err.message, 'danger');
       }
     }
 
