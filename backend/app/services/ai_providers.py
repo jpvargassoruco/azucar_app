@@ -103,11 +103,10 @@ async def call_ai(
     json_mode: bool = False,
     temperature: float = 0.7,
     timeout: float = 45.0,
-    use_fallback: bool = True,
 ) -> str:
     """
     Unified AI call. Routes to the correct provider API format.
-    Falls back to Nvidia if Google fails.
+    Each provider is independent — no cross-provider fallback on failure.
     """
     provider, api_key, model, base_url = _resolve_config(user)
 
@@ -124,19 +123,8 @@ async def call_ai(
             return await _call_google(messages, model, api_key, base_url, json_mode, timeout)
         else:
             return await _call_openai_compatible(messages, model, api_key, base_url, json_mode, temperature, timeout, headers)
-
     except Exception as err:
         logger.error(f"AI call failed for provider {provider}: {err}")
-        if use_fallback and provider != "nvidia":
-            logger.info("Falling back to Nvidia API...")
-            try:
-                return await _call_openai_compatible(
-                    messages, settings.FALLBACK_NVIDIA_MODEL, settings.FALLBACK_NVIDIA_KEY,
-                    settings.FALLBACK_NVIDIA_URL, json_mode, temperature, timeout, headers
-                )
-            except Exception as fb_err:
-                logger.error(f"Fallback also failed: {fb_err}")
-                raise
         raise
 
 

@@ -117,7 +117,7 @@ async def query_hermes_agent(message: str, history: list, health_context: str, u
         messages.append({"role": "user", "content": message})
 
         try:
-            return await call_ai(messages, user, temperature=0.7, use_fallback=True)
+            return await call_ai(messages, user, temperature=0.7)
         except Exception as err:
             logger.error(f"User custom AI query failed: {err}")
             return f"Lo siento, hubo un error al conectar con tu proveedor de IA configurado: {err}. Por favor verifica tus credenciales."

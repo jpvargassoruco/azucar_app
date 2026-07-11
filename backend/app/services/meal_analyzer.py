@@ -41,15 +41,8 @@ async def analyze_meal_image(image_path: str, user: Optional[User] = None, healt
         if health_context:
             prompt += f"\nCONTEXTO DE SALUD DEL PACIENTE:\n{health_context}\n"
 
-        # For Deepseek (text-only), force fallback to system OpenRouter
-        provider = user.ai_provider if user and user.ai_provider else "openrouter"
-        if provider == "deepseek":
-            logger.info("Deepseek is text-only. Using system OpenRouter for vision analysis.")
-            messages = [{"role": "user", "content": [{"type": "text", "text": prompt}, {"type": "image_url", "image_url": {"url": image_data_url}}]}]
-            content = await call_ai(messages, None, json_mode=True, use_fallback=True)
-        else:
-            messages = [{"role": "user", "content": [{"type": "text", "text": prompt}, {"type": "image_url", "image_url": {"url": image_data_url}}]}]
-            content = await call_ai(messages, user, json_mode=True, use_fallback=True)
+        messages = [{"role": "user", "content": [{"type": "text", "text": prompt}, {"type": "image_url", "image_url": {"url": image_data_url}}]}]
+        content = await call_ai(messages, user, json_mode=True)
 
         # Clean markdown formatting
         content_cleaned = content.strip()
@@ -98,7 +91,7 @@ async def correct_meal_analysis(current_analysis: dict, correction_comment: str,
             prompt += f"\n\nCONTEXTO DE SALUD DEL PACIENTE:\n{health_context}"
 
         messages = [{"role": "user", "content": prompt}]
-        content = await call_ai(messages, user, json_mode=True, use_fallback=True)
+        content = await call_ai(messages, user, json_mode=True)
 
         content_cleaned = content.strip()
         if content_cleaned.startswith("```"):

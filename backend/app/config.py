@@ -28,11 +28,6 @@ class Settings(BaseSettings):
     HERMES_API_KEY: str = ""
     HERMES_URL: str = "http://hermes:8642"
 
-    # Nvidia fallback
-    FALLBACK_NVIDIA_KEY: str = ""
-    FALLBACK_NVIDIA_URL: str = "https://integrate.api.nvidia.com/v1"
-    FALLBACK_NVIDIA_MODEL: str = "nvidia/nemotron-3-super-120b-a12b"
-    
     # Uploads
     MAX_UPLOAD_SIZE_MB: int = 10
     THUMBNAIL_SIZE: int = 400

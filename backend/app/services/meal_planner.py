@@ -44,7 +44,7 @@ async def generate_meal_plan(health_context: str, preferences: str, num_meals: i
         )
 
         messages = [{"role": "user", "content": prompt}]
-        content = await call_ai(messages, user, json_mode=True, use_fallback=True)
+        content = await call_ai(messages, user, json_mode=True)
 
         content_cleaned = content.strip()
         if content_cleaned.startswith("```"):
