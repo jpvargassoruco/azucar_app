@@ -1,4 +1,4 @@
-const CACHE_NAME = 'azucar-cache-v2';
+const CACHE_NAME = 'azucar-cache-v3';
 const ASSETS = [
   '/',
   '/index.html',
@@ -32,28 +32,43 @@ self.addEventListener('activate', (e) => {
   );
 });
 
-// Cache interceptor
+// Network-first for HTML/CSS/JS (always get latest), cache-first for others
 self.addEventListener('fetch', (e) => {
   const url = new URL(e.request.url);
-  
+
   // Always fetch API routes directly from network
   if (url.pathname.startsWith('/api')) {
     e.respondWith(fetch(e.request));
-  } else {
-    // Cache-first strategy for static files
+    return;
+  }
+
+  // Network-first for core app files (HTML, CSS, JS, manifest)
+  const isAppFile = /\.(html|css|js|json)$/.test(url.pathname) || url.pathname === '/';
+  if (isAppFile) {
     e.respondWith(
-      caches.match(e.request).then((cachedResponse) => {
-        if (cachedResponse) {
-          return cachedResponse;
-        }
+      fetch(e.request)
+        .then((response) => {
+          // Update cache with fresh response
+          const cloned = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(e.request, cloned));
+          return response;
+        })
+        .catch(() => {
+          // Offline: serve from cache
+          return caches.match(e.request);
+        })
+    );
+  } else {
+    // Cache-first for fonts, icons, images
+    e.respondWith(
+      caches.match(e.request).then((cached) => {
+        if (cached) return cached;
         return fetch(e.request).then((response) => {
           if (!response || response.status !== 200 || response.type !== 'basic') {
             return response;
           }
-          const responseToCache = response.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(e.request, responseToCache);
-          });
+          const cloned = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(e.request, cloned));
           return response;
         });
       })
@@ -83,36 +98,26 @@ self.addEventListener('push', (e) => {
     body: data.body,
     icon: data.icon || '/icons/icon-192x192.png',
     badge: data.badge || '/icons/icon-192x192.png',
-    data: {
-      url: data.url || '/'
-    },
+    data: { url: data.url || '/' },
     vibrate: [100, 50, 100],
-    actions: [
-      { action: 'open', title: 'Abrir' }
-    ]
+    actions: [{ action: 'open', title: 'Abrir' }]
   };
 
-  e.waitUntil(
-    self.registration.showNotification(data.title, options)
-  );
+  e.waitUntil(self.registration.showNotification(data.title, options));
 });
 
 // Handle notification click event
 self.addEventListener('notificationclick', (e) => {
   e.notification.close();
-  
   const targetUrl = e.notification.data.url || '/';
-
   e.waitUntil(
     clients.matchAll({ type: 'window' }).then((windowClients) => {
-      // Focus if window exists
       for (let i = 0; i < windowClients.length; i++) {
         const client = windowClients[i];
         if (client.url.includes(self.location.origin) && 'focus' in client) {
           return client.navigate(targetUrl).then((c) => c.focus());
         }
       }
-      // Otherwise open new window
       if (clients.openWindow) {
         return clients.openWindow(targetUrl);
       }
@@ -142,5 +147,17 @@ async function syncHealthData() {
 self.addEventListener('message', (e) => {
   if (e.data && e.data.type === 'SKIP_WAITING') {
     self.skipWaiting();
+  }
+  if (e.data && e.data.type === 'FORCE_UPDATE') {
+    self.skipWaiting();
+    // Clear all caches except current
+    caches.keys().then((keys) => {
+      return Promise.all(keys.map((key) => caches.delete(key)));
+    }).then(() => {
+      // Notify all clients to reload
+      self.clients.matchAll().then((clients) => {
+        clients.forEach((client) => client.postMessage({ type: 'RELOAD_APP' }));
+      });
+    });
   }
 });

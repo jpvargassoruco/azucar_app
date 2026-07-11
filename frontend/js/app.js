@@ -403,6 +403,7 @@
         urlInput.placeholder = defaults.url;
       }
     }
+    window.handleProviderChange = handleProviderChange;
 
     function togglePasswordVisibility(inputId) {
       const input = $(`#${inputId}`);
@@ -1982,43 +1983,54 @@
     const origShowConfirm = window.showConfirm;
     // haptic is handled by the global showConfirm defined in init
 
+    // Listen for SW reload messages
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.addEventListener('message', (e) => {
+        if (e.data && e.data.type === 'RELOAD_APP') {
+          window.location.reload();
+        }
+      });
+    }
+
     // ===== FORCE UPDATE =====
     window.forceUpdateApp = async function() {
       const btn = $('#btnUpdateApp');
       if (!btn) return;
+      const origText = btn.textContent;
       btn.textContent = '⏳ Actualizando...';
       btn.disabled = true;
 
       try {
-        // 1. Unregister all service workers
+        // Tell service worker to update and clear caches
         if ('serviceWorker' in navigator) {
+          const reg = await navigator.serviceWorker.ready;
+          if (reg.waiting) {
+            reg.waiting.postMessage({ type: 'FORCE_UPDATE' });
+          } else if (reg.active) {
+            reg.active.postMessage({ type: 'FORCE_UPDATE' });
+          }
+          // Also unregister to be safe
           const registrations = await navigator.serviceWorker.getRegistrations();
-          for (const reg of registrations) {
-            await reg.unregister();
+          for (const r of registrations) {
+            await r.unregister();
           }
         }
 
-        // 2. Clear all cache storage
+        // Clear all caches directly
         if ('caches' in window) {
           const keys = await caches.keys();
           await Promise.all(keys.map(k => caches.delete(k)));
         }
 
-        // 3. Clear app cache keys from localStorage (keep auth + settings)
-        const keepKeys = ['azucar_token', 'azucar_theme', 'azucar_zoom', 'azucar_alarm_pp', 'azucar_alarm_hydration'];
-        const allKeys = Object.keys(localStorage);
-        for (const key of allKeys) {
-          if (!keepKeys.includes(key)) {
-            localStorage.removeItem(key);
-          }
-        }
-
-        showToast('✅ App actualizada. Recargando...', 'success');
-        setTimeout(() => window.location.reload(true), 500);
+        // Hard reload after short delay
+        setTimeout(() => {
+          window.location.href = '/';
+        }, 300);
       } catch (err) {
-        btn.textContent = '🔄 Buscar e instalar actualización';
+        btn.textContent = origText;
         btn.disabled = false;
-        showToast('Error al actualizar: ' + err.message, 'danger');
+        // Fallback: just reload
+        window.location.reload(true);
       }
     };
 
