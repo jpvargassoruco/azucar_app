@@ -1062,6 +1062,7 @@
       const btn = $('#btnProcessQueue');
       const origText = btn.textContent;
       btn.disabled = true;
+      const failed = [];
       let success = 0;
 
       for (let i = 0; i < pendingPhotos.length; i++) {
@@ -1069,7 +1070,6 @@
         btn.textContent = '⏳ Analizando ' + (i+1) + '/' + pendingPhotos.length + '...';
 
         try {
-          // Convert data URL to blob
           const resp = await fetch(photo.dataUrl);
           const blob = await resp.blob();
 
@@ -1086,26 +1086,41 @@
           });
 
           if (res.ok) {
-            success++;
+            const data = await res.json();
+            // Check if AI returned fallback data (not real analysis)
+            const foods = data.ai_analysis?.food_items || [];
+            const isFallback = foods.some(f => f.includes('Fallback')) ||
+                               (data.ai_analysis?.recommendation || '').includes('No se pudo conectar');
+            if (isFallback) {
+              failed.push(photo);
+              showToast('⚠️ Foto ' + (i+1) + ' no reconocida. La IA no pudo identificar el alimento. Queda en cola.', 'warning');
+            } else {
+              success++;
+            }
           } else {
+            failed.push(photo);
             const errData = await res.json().catch(() => ({}));
             showToast('Error en foto ' + (i+1) + ': ' + (errData.detail || 'falló'), 'danger');
           }
         } catch (err) {
+          failed.push(photo);
           showToast('Error: ' + err.message, 'danger');
         }
       }
 
-      // Clear queue and refresh
       const total = pendingPhotos.length;
-      pendingPhotos = [];
+      // Keep failed photos in queue so user can retry
+      pendingPhotos = failed;
       renderPendingQueue();
-      await loadMealsData();
-      btn.textContent = origText;
-      btn.disabled = false;
       if (success > 0) {
+        await loadMealsData();
         showToast('✅ ' + success + '/' + total + ' fotos analizadas con éxito', 'success');
       }
+      if (failed.length > 0) {
+        showToast('⚠️ ' + failed.length + ' foto(s) no reconocidas permanecen en cola. Podés reintentarlas.', 'warning');
+      }
+      btn.textContent = origText;
+      btn.disabled = false;
     };
 
     window.renderPendingQueue = renderPendingQueue;
@@ -1173,7 +1188,15 @@
           throw new Error(errData.detail || 'Vision API failed');
         }
 
-        showToast('Plato analizado con éxito', 'success');
+        const data = await res.json();
+        const foods = data.ai_analysis?.food_items || [];
+        const isFallback = foods.some(f => f.includes('Fallback')) ||
+                           (data.ai_analysis?.recommendation || '').includes('No se pudo conectar');
+        if (isFallback) {
+          showToast('⚠️ La IA no pudo reconocer el alimento. Intentá con otra foto o usa la cola para reintentar.', 'warning');
+        } else {
+          showToast('Plato analizado con éxito', 'success');
+        }
         if (cameraInput) cameraInput.value = '';
         if (galleryInput) galleryInput.value = '';
         if (nameEl) nameEl.style.display = 'none';
