@@ -91,26 +91,14 @@ async def get_user_health_context(db: AsyncSession, user: User) -> str:
     return context
 
 from typing import Optional
+from app.services.ai_providers import call_ai
 
 async def query_hermes_agent(message: str, history: list, health_context: str, user: Optional[User] = None) -> str:
     """
-    Dispatches chat request to Hermes-Agent container with fallback to direct OpenRouter.
-    If the user has custom AI settings, it queries their provider directly instead.
+    Dispatches chat request to the user's configured AI provider with Nvidia fallback.
     """
     # Check if user has personal AI settings configured
     if user and user.ai_api_key:
-        api_key = user.ai_api_key
-        model = user.ai_model or settings.OPENROUTER_MODEL
-        base_url = user.ai_base_url or settings.OPENROUTER_BASE_URL
-        provider = user.ai_provider or "openrouter"
-        
-        if provider == "kimi" and not user.ai_base_url:
-            base_url = "https://api.moonshot.cn/v1"
-        elif provider == "deepseek" and not user.ai_base_url:
-            base_url = "https://api.deepseek.com/v1"
-        elif provider == "nvidia" and not user.ai_base_url:
-            base_url = "https://integrate.api.nvidia.com/v1"
-
         messages = [
             {
                 "role": "system",
@@ -121,41 +109,18 @@ async def query_hermes_agent(message: str, history: list, health_context: str, u
                 )
             }
         ]
-        
+
         if history:
             for msg in history:
                 messages.append({"role": msg["role"], "content": msg["content"]})
-                
-        messages.append({"role": "user", "content": message})
-        
-        payload = {
-            "model": model,
-            "messages": messages
-        }
-        if provider != "kimi":
-            payload["temperature"] = 0.7
 
-        
-        headers = {
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json",
-            "HTTP-Referer": "https://azucar.aeisoftware.com",
-            "X-Title": "Azucar Control"
-        }
-        
-        async with httpx.AsyncClient(timeout=45.0) as client:
-            try:
-                response = await client.post(
-                    f"{base_url.rstrip('/')}/chat/completions",
-                    headers=headers,
-                    json=payload
-                )
-                response.raise_for_status()
-                res_data = response.json()
-                return res_data["choices"][0]["message"]["content"]
-            except Exception as err:
-                logger.error(f"User custom AI query failed: {err}")
-                return f"Lo siento, hubo un error al conectar con tu proveedor de IA configurado: {err}. Por favor verifica tus credenciales."
+        messages.append({"role": "user", "content": message})
+
+        try:
+            return await call_ai(messages, user, temperature=0.7, use_fallback=True)
+        except Exception as err:
+            logger.error(f"User custom AI query failed: {err}")
+            return f"Lo siento, hubo un error al conectar con tu proveedor de IA configurado: {err}. Por favor verifica tus credenciales."
 
     # Otherwise, fallback to system config
     if not settings.OPENROUTER_API_KEY:

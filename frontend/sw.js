@@ -6,6 +6,7 @@ const ASSETS = [
   '/css/app.css',
   '/js/app.js',
   '/js/theme.js',
+  '/js/offline.js',
   'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap'
 ];
 
@@ -117,4 +118,29 @@ self.addEventListener('notificationclick', (e) => {
       }
     })
   );
+});
+
+// Periodic Background Sync handler
+self.addEventListener('periodicsync', (e) => {
+  if (e.tag === 'sync-health-data') {
+    e.waitUntil(syncHealthData());
+  }
+});
+
+async function syncHealthData() {
+  try {
+    const clients = await self.clients.matchAll({ type: 'window' });
+    if (clients.length > 0) {
+      clients[0].postMessage({ type: 'SYNC_DATA' });
+    }
+  } catch (err) {
+    console.warn('Periodic sync failed:', err);
+  }
+}
+
+// Message handler for SW communication
+self.addEventListener('message', (e) => {
+  if (e.data && e.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
 });

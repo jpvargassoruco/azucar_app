@@ -1,60 +1,32 @@
-import httpx
 import base64
 import json
 from app.config import settings
 import logging
 from app.models.user import User
+from app.services.ai_providers import call_ai
 from typing import Optional
 
 logger = logging.getLogger(__name__)
 
 async def analyze_meal_image(image_path: str, user: Optional[User] = None, health_context: str = "") -> dict:
     """
-    Sends the meal image to the resolved Vision API (OpenRouter or Kimi).
-    Parses and returns structured nutritional details.
+    Sends the meal image to the user's AI provider for nutritional analysis.
+    For Deepseek (text-only), falls back to system OpenRouter for vision.
     """
-    # Resolve credentials, model, and endpoint
-    api_key = user.ai_api_key if user and user.ai_api_key else settings.OPENROUTER_API_KEY
-    base_url = user.ai_base_url if user and user.ai_base_url else settings.OPENROUTER_BASE_URL
-    model = user.ai_model if user and user.ai_model else settings.OPENROUTER_MODEL
-    provider = user.ai_provider if user and user.ai_provider else "openrouter"
-    
-    # Autofill defaults for providers
-    if user and provider == "kimi" and not user.ai_base_url:
-        base_url = "https://api.moonshot.cn/v1"
-    elif user and provider == "deepseek" and not user.ai_base_url:
-        base_url = "https://api.deepseek.com/v1"
-    elif user and provider == "nvidia" and not user.ai_base_url:
-        base_url = "https://integrate.api.nvidia.com/v1"
-
-    # Deepseek text models don't support vision — fall back to system OpenRouter
-    if user and provider == "deepseek":
-        logger.info("Deepseek is text-only. Falling back to system OpenRouter for vision analysis.")
-        api_key = settings.OPENROUTER_API_KEY
-        base_url = settings.OPENROUTER_BASE_URL
-        model = settings.OPENROUTER_MODEL
-
-    if not api_key:
+    if not (user and user.ai_api_key) and not settings.OPENROUTER_API_KEY:
         logger.warning("No API Key configured for meal analysis. Returning fallback.")
         return get_fallback_analysis()
-        
+
     try:
         # Read file and encode to base64
         with open(image_path, "rb") as image_file:
             base64_image = base64.b64encode(image_file.read()).decode("utf-8")
-            
+
         image_data_url = f"data:image/jpeg;base64,{base64_image}"
-        
-        headers = {
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json",
-            "HTTP-Referer": "https://azucar.aeisoftware.com",
-            "X-Title": "Azucar Control"
-        }
-        
+
         prompt = (
             "Eres un nutricionista experto en diabetes tipo 2. Analiza esta foto de comida y responde EXCLUSIVAMENTE "
-            "con un objeto JSON estructurado que siga exactamente este esquema, sin bloques de código markdown (```json), sin texto adicional:\n"
+            "con un objeto JSON estructurado que siga exactamente este esquema, sin bloques de código markdown, sin texto adicional:\n"
             "{\n"
             "  \"food_items\": [\"lista de alimentos identificados\"],\n"
             "  \"calories_estimated\": número,\n"
@@ -68,50 +40,29 @@ async def analyze_meal_image(image_path: str, user: Optional[User] = None, healt
         )
         if health_context:
             prompt += f"\nCONTEXTO DE SALUD DEL PACIENTE:\n{health_context}\n"
-        
-        payload = {
-            "model": model,
-            "messages": [
-                {
-                    "role": "user",
-                    "content": [
-                        {"type": "text", "text": prompt},
-                        {
-                            "type": "image_url",
-                            "image_url": {
-                                "url": image_data_url
-                            }
-                        }
-                    ]
-                }
-            ],
-            "response_format": {"type": "json_object"}
-        }
-        
-        async with httpx.AsyncClient(timeout=45.0) as client:
-            response = await client.post(
-                f"{base_url.rstrip('/')}/chat/completions",
-                headers=headers,
-                json=payload
-            )
-            response.raise_for_status()
-            res_json = response.json()
-            
-            content = res_json["choices"][0]["message"]["content"]
-            
-            # Clean markdown formatting if returned by the LLM
-            content_cleaned = content.strip()
-            if content_cleaned.startswith("```"):
-                lines = content_cleaned.split("\n")
-                if lines[0].startswith("```"):
-                    lines = lines[1:]
-                if lines[-1].startswith("```"):
-                    lines = lines[:-1]
-                content_cleaned = "\n".join(lines).strip()
-                
-            analysis = json.loads(content_cleaned)
-            return analysis
-            
+
+        # For Deepseek (text-only), force fallback to system OpenRouter
+        provider = user.ai_provider if user and user.ai_provider else "openrouter"
+        if provider == "deepseek":
+            logger.info("Deepseek is text-only. Using system OpenRouter for vision analysis.")
+            messages = [{"role": "user", "content": [{"type": "text", "text": prompt}, {"type": "image_url", "image_url": {"url": image_data_url}}]}]
+            content = await call_ai(messages, None, json_mode=True, use_fallback=True)
+        else:
+            messages = [{"role": "user", "content": [{"type": "text", "text": prompt}, {"type": "image_url", "image_url": {"url": image_data_url}}]}]
+            content = await call_ai(messages, user, json_mode=True, use_fallback=True)
+
+        # Clean markdown formatting
+        content_cleaned = content.strip()
+        if content_cleaned.startswith("```"):
+            lines = content_cleaned.split("\n")
+            if lines[0].startswith("```"):
+                lines = lines[1:]
+            if lines[-1].startswith("```"):
+                lines = lines[:-1]
+            content_cleaned = "\n".join(lines).strip()
+
+        return json.loads(content_cleaned)
+
     except Exception as ex:
         logger.error(f"Error in Vision analysis: {ex}")
         return get_fallback_analysis()
@@ -120,31 +71,11 @@ async def correct_meal_analysis(current_analysis: dict, correction_comment: str,
     """
     Sends the current analysis and user correction comment to the LLM to generate a corrected JSON analysis.
     """
-    api_key = user.ai_api_key if user and user.ai_api_key else settings.OPENROUTER_API_KEY
-    base_url = user.ai_base_url if user and user.ai_base_url else settings.OPENROUTER_BASE_URL
-    model = user.ai_model if user and user.ai_model else settings.OPENROUTER_MODEL
-    provider = user.ai_provider if user and user.ai_provider else "openrouter"
-    
-    # Autofill defaults for providers
-    if user and provider == "kimi" and not user.ai_base_url:
-        base_url = "https://api.moonshot.cn/v1"
-    elif user and provider == "deepseek" and not user.ai_base_url:
-        base_url = "https://api.deepseek.com/v1"
-    elif user and provider == "nvidia" and not user.ai_base_url:
-        base_url = "https://integrate.api.nvidia.com/v1"
-
-    if not api_key:
-        logger.warning("No API Key configured for meal analysis. Returning current.")
+    if not (user and user.ai_api_key) and not settings.OPENROUTER_API_KEY:
+        logger.warning("No API Key configured for meal correction. Returning current.")
         return current_analysis
-        
+
     try:
-        headers = {
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json",
-            "HTTP-Referer": "https://azucar.aeisoftware.com",
-            "X-Title": "Azucar Control"
-        }
-        
         prompt = (
             "Eres un nutricionista experto en diabetes tipo 2. El usuario ha proveído una corrección para el análisis nutricional de una comida reciente.\n"
             f"El análisis anterior era:\n{json.dumps(current_analysis, indent=2, ensure_ascii=False)}\n\n"
@@ -162,44 +93,24 @@ async def correct_meal_analysis(current_analysis: dict, correction_comment: str,
             "  \"recommendation\": \"consejo breve de nutrición para un paciente con diabetes tipo 2\"\n"
             "}"
         )
-        
+
         if health_context:
             prompt += f"\n\nCONTEXTO DE SALUD DEL PACIENTE:\n{health_context}"
-        
-        payload = {
-            "model": model,
-            "messages": [
-                {
-                    "role": "user",
-                    "content": prompt
-                }
-            ],
-            "response_format": {"type": "json_object"}
-        }
-        
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.post(
-                f"{base_url.rstrip('/')}/chat/completions",
-                headers=headers,
-                json=payload
-            )
-            response.raise_for_status()
-            res_json = response.json()
-            
-            content = res_json["choices"][0]["message"]["content"]
-            
-            content_cleaned = content.strip()
-            if content_cleaned.startswith("```"):
-                lines = content_cleaned.split("\n")
-                if lines[0].startswith("```"):
-                    lines = lines[1:]
-                if lines[-1].startswith("```"):
-                    lines = lines[:-1]
-                content_cleaned = "\n".join(lines).strip()
-                
-            analysis = json.loads(content_cleaned)
-            return analysis
-            
+
+        messages = [{"role": "user", "content": prompt}]
+        content = await call_ai(messages, user, json_mode=True, use_fallback=True)
+
+        content_cleaned = content.strip()
+        if content_cleaned.startswith("```"):
+            lines = content_cleaned.split("\n")
+            if lines[0].startswith("```"):
+                lines = lines[1:]
+            if lines[-1].startswith("```"):
+                lines = lines[:-1]
+            content_cleaned = "\n".join(lines).strip()
+
+        return json.loads(content_cleaned)
+
     except Exception as ex:
         logger.error(f"Error in meal correction: {ex}")
         return current_analysis

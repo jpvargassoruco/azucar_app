@@ -228,7 +228,6 @@
 
     // Map bottom nav tabs to section IDs
     const TAB_MAP = {
-      alert: 'sectionAlert',
       registry: 'sectionRegistry',
       nutrition: 'sectionMeals',  // default to Comidas sub-tab
       meals: 'sectionMeals',
@@ -383,31 +382,32 @@
       handleProviderChange();
     }
 
+    // Provider defaults: model + base URL
+    const PROVIDER_DEFAULTS = {
+      google:    { model: 'gemini-2.5-flash',     url: 'https://generativelanguage.googleapis.com/v1beta' },
+      openrouter:{ model: 'openrouter/auto',      url: 'https://openrouter.ai/api/v1' },
+      deepseek:  { model: 'deepseek-chat',        url: 'https://api.deepseek.com/v1' },
+      nvidia:    { model: 'nvidia/nemotron-3-super-120b-a12b', url: 'https://integrate.api.nvidia.com/v1' }
+    };
+
     function handleProviderChange() {
       const provider = $('#configProvider').value;
       const modelInput = $('#configModel');
       const urlInput = $('#configBaseUrl');
+      const defaults = PROVIDER_DEFAULTS[provider];
 
-      if (provider === 'kimi') {
-        if (!modelInput.value || modelInput.value === 'openrouter/auto' || modelInput.value === 'deepseek-chat') {
-          modelInput.value = 'kimi-k2.6';
+      if (defaults) {
+        // Auto-fill model if empty or from a different provider
+        const knownModels = Object.values(PROVIDER_DEFAULTS).map(d => d.model);
+        if (!modelInput.value || knownModels.includes(modelInput.value)) {
+          modelInput.value = defaults.model;
         }
-        urlInput.placeholder = 'https://api.moonshot.cn/v1';
-      } else if (provider === 'deepseek') {
-        if (!modelInput.value || modelInput.value === 'openrouter/auto' || modelInput.value === 'kimi-k2.6') {
-          modelInput.value = 'deepseek-chat';
+        // Auto-fill URL if empty or from a different provider
+        const knownUrls = Object.values(PROVIDER_DEFAULTS).map(d => d.url);
+        if (!urlInput.value || knownUrls.includes(urlInput.value)) {
+          urlInput.value = defaults.url;
         }
-        urlInput.placeholder = 'https://api.deepseek.com/v1';
-      } else if (provider === 'nvidia') {
-        if (!modelInput.value || modelInput.value === 'openrouter/auto' || modelInput.value === 'kimi-k2.6' || modelInput.value === 'deepseek-chat') {
-          modelInput.value = 'nvidia/nemotron-3-super-120b-a12b';
-        }
-        urlInput.placeholder = 'https://integrate.api.nvidia.com/v1';
-      } else {
-        if (!modelInput.value || modelInput.value === 'kimi-k2.6' || modelInput.value === 'deepseek-chat' || modelInput.value.startsWith('nvidia/')) {
-          modelInput.value = 'openrouter/auto';
-        }
-        urlInput.placeholder = 'https://openrouter.ai/api/v1';
+        urlInput.placeholder = defaults.url;
       }
     }
 
@@ -1929,7 +1929,7 @@
       const diffX = e.changedTouches[0].screenX - touchStartX;
       const diffY = e.changedTouches[0].screenY - touchStartY;
       if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > SWIPE_THRESHOLD) {
-        const TAB_ORDER = ['alert', 'registry', 'nutrition', 'fasting'];
+        const TAB_ORDER = ['registry', 'nutrition', 'fasting'];
         const activeTab = document.querySelector('.bottom-nav-item.active');
         if (activeTab) {
           const currentIdx = TAB_ORDER.indexOf(activeTab.dataset.tab);
@@ -1988,6 +1988,42 @@
     // Stronger haptic on delete actions
     const origShowConfirm = window.showConfirm;
     // haptic is handled by the global showConfirm defined in init
+
+    // ===== ZOOM CONTROLS =====
+    let currentZoom = 100;
+    const ZOOM_STEP = 10;
+    const ZOOM_MIN = 70;
+    const ZOOM_MAX = 200;
+
+    window.zoomIn = function() {
+      currentZoom = Math.min(currentZoom + ZOOM_STEP, ZOOM_MAX);
+      applyZoom();
+    };
+
+    window.zoomOut = function() {
+      currentZoom = Math.max(currentZoom - ZOOM_STEP, ZOOM_MIN);
+      applyZoom();
+    };
+
+    window.zoomReset = function() {
+      currentZoom = 100;
+      applyZoom();
+    };
+
+    function applyZoom() {
+      document.querySelector('.app-container').style.transform = `scale(${currentZoom / 100})`;
+      document.querySelector('.app-container').style.transformOrigin = 'top center';
+      const zoomEl = $('#zoomLevel');
+      if (zoomEl) zoomEl.textContent = currentZoom + '%';
+      localStorage.setItem('azucar_zoom', currentZoom);
+    }
+
+    // Restore saved zoom
+    const savedZoom = localStorage.getItem('azucar_zoom');
+    if (savedZoom) {
+      currentZoom = parseInt(savedZoom);
+      setTimeout(applyZoom, 100);
+    }
 
     // ===== MAIN INITIALIZER =====
     function init() {
