@@ -2505,9 +2505,13 @@
 
       // Register Service Worker
       if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('/sw.js')
+        navigator.serviceWorker.register('/sw.js?v=' + Date.now(), {
+          updateViaCache: 'none'
+        })
           .then(reg => {
             console.log('Service Worker Registered successfully', reg.scope);
+            // Check for updates every 30s
+            setInterval(() => reg.update(), 30000);
             // If already subscribed, update push button state
             reg.pushManager.getSubscription().then(sub => {
               if (sub) {
