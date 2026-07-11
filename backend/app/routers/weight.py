@@ -55,5 +55,5 @@ async def delete_weight(
     db_weight = result.scalars().first()
     if not db_weight:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Weight reading not found")
-    await db.delete(db_weight)
+    db.delete(db_weight)
     await db.commit()
