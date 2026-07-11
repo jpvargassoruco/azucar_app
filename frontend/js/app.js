@@ -2402,9 +2402,9 @@
           await Promise.all(keys.map(k => caches.delete(k)));
         }
 
-        // Hard reload after short delay
+        // Hard reload after short delay (bypass HTTP cache)
         setTimeout(() => {
-          window.location.href = '/';
+          window.location.reload(true);
         }, 300);
       } catch (err) {
         btn.textContent = origText;

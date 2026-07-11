@@ -174,6 +174,48 @@ const HELP_SECTIONS = [
     `
   },
   {
+    title: 'Signos Vitales: Peso',
+    icon: '📏',
+    content: `
+      <p>Registra tu peso corporal en kilogramos para monitorear cambios a lo largo del tiempo.</p>
+      <p><strong>Información registrada:</strong></p>
+      <ul>
+        <li>Peso en kg (rango: 0–300 kg)</li>
+        <li>Fecha y hora de medición</li>
+        <li>Notas opcionales (ej. "antes del desayuno", "después del ejercicio")</li>
+      </ul>
+      <p>El historial de peso se usa para calcular tu Índice de Masa Corporal (IMC) cuando combinas con tu altura. Elimina registros individuales con el botón 🗑️.</p>
+    `
+  },
+  {
+    title: 'Signos Vitales: Presión Arterial',
+    icon: '💧',
+    content: `
+      <p>Registra tu presión arterial (sistólica y diastólica) en mmHg (milímetros de mercurio).</p>
+      <p><strong>Rangos clínicos:</strong></p>
+      <ul>
+        <li><strong>Normal:</strong> &lt; 120 / &lt; 80 mmHg</li>
+        <li><strong>Elevada:</strong> 120–129 / &lt; 80 mmHg</li>
+        <li><strong>Hipertensión:</strong> ≥ 130 / ≥ 80 mmHg</li>
+      </ul>
+      <p>La presión arterial es especialmente importante en diabetes tipo 2. Registra en reposo, 5 minutos después de sentarte. Incluye notas sobre medicamentos tomados o condiciones especiales.</p>
+    `
+  },
+  {
+    title: 'Signos Vitales: HbA1c Lab',
+    icon: '🩸',
+    content: `
+      <p>Registra los resultados de tu <strong>análisis de laboratorio de HbA1c</strong> (hemoglobina glicosilada).</p>
+      <p><strong>¿Qué es?</strong> HbA1c mide tu glucosa promedio de los últimos 3 meses. No es una medición diaria como tu glucómetro.</p>
+      <p><strong>Objetivos según tu médico:</strong></p>
+      <ul>
+        <li>Diabetes tipo 2: generalmente &lt; 7% (algunos pacientes 6.5%)</li>
+        <li>Rango normal: 4–6%</li>
+      </ul>
+      <p>Ingresa el valor en porcentaje que tu laboratorio reportó. La app lo almacena con la fecha del análisis para seguimiento a largo plazo.</p>
+    `
+  },
+  {
     title: 'Actualizar la App',
     icon: '🔄',
     content: `
@@ -183,6 +225,11 @@ const HELP_SECTIONS = [
         <li>Toca <strong>Buscar e instalar actualización</strong></li>
         <li>La app se recargará con la última versión</li>
       </ol>
+      <p><strong>Nota:</strong> El navegador guarda la app en caché. Si no ves cambios después de actualizar:</p>
+      <ul>
+        <li>Abre Configuración → Actualizar App y repite el proceso</li>
+        <li>O, en el menú del navegador, busca "Borrar datos del sitio" o "Clear storage" y recarga</li>
+      </ul>
       <p>También puedes instalar la app en tu pantalla de inicio desde el menú del navegador (⋮ → Agregar a pantalla de inicio) para usarla como una app nativa.</p>
     `
   }
