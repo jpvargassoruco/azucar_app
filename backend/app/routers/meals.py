@@ -37,13 +37,25 @@ async def get_meals(
 async def upload_meal(
     photo: UploadFile = File(...),
     notes: Optional[str] = Form(None),
+    meal_datetime: Optional[str] = Form(None),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """
     Upload a meal photo. Analyzes the content using Vision AI,
     creates a compressed thumbnail, deletes the original image, and saves to database.
+    Optionally accepts meal_datetime (ISO 8601) for the meal timestamp.
     """
+    # Parse meal datetime if provided
+    meal_dt = datetime.now(timezone.utc)
+    if meal_datetime:
+        try:
+            meal_dt = datetime.fromisoformat(meal_datetime)
+        except ValueError:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Formato de fecha inválido. Usa formato ISO 8601 (YYYY-MM-DDTHH:MM)."
+            )
     # Verify file extension
     _, ext = os.path.splitext(photo.filename)
     if ext.lower() not in (".jpg", ".jpeg", ".png", ".webp"):
@@ -89,7 +101,7 @@ async def upload_meal(
     
     db_meal = MealEntry(
         user_id=current_user.id,
-        datetime=datetime.now(timezone.utc),
+        datetime=meal_dt,
         photo_path=None,  # We don't save the original
         thumbnail_path=web_thumb_path,
         notes=notes,

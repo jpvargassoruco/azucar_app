@@ -259,7 +259,25 @@
             <button type="submit" id="btnUploadMeal" class="btn btn-primary" style="width: 100%; margin-top: 8px;">
               🔍 Analizar con Visión IA
             </button>
+            <button type="button" id="btnAddToQueue" class="btn btn-ghost" onclick="addToPendingQueue()" style="width: 100%; margin-top: 6px;">
+              📋 Agregar a Cola <span id="pendingCount" style="background: var(--accent-orange); color: #fff; border-radius: 50%; padding: 2px 8px; font-size: 0.75rem; margin-left: 6px; display: none;">0</span>
+            </button>
           </form>
+        </div>
+
+        <!-- Pending Photos Queue -->
+        <div id="pendingQueueCard" class="card" style="display: none;">
+          <div class="card-header">
+            <div class="icon-badge" style="background: rgba(251, 146, 60, 0.1); color: var(--accent-orange);">📋</div>
+            <div>
+              <h2>Fotos Pendientes</h2>
+              <p>Asigna la hora de cada comida y analiza todas juntas</p>
+            </div>
+          </div>
+          <div id="pendingPhotosGrid" style="display: flex; flex-direction: column; gap: 12px;"></div>
+          <button id="btnProcessQueue" class="btn btn-primary" onclick="processPendingQueue()" style="width: 100%; margin-top: 16px; background: var(--accent-orange);">
+            🔍 Analizar Todo (<span id="pendingToProcess">0</span> fotos)
+          </button>
         </div>
 
         <!-- Help/Guidelines Card (Collapsible) -->

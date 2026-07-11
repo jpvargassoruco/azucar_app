@@ -734,6 +734,7 @@
     window.mealsMap = {};
 
     async function loadMealsData() {
+      window.loadMealsData = loadMealsData;
       try {
         const meals = await apiFetch('/api/v1/meals/');
         window.mealsMap = {};
@@ -877,6 +878,7 @@
     }
 
     async function deleteMeal(id) {
+      window.deleteMeal = deleteMeal;
       if (!await showConfirm('¿Seguro que deseas eliminar esta comida de tu historial?')) return;
       try {
         await apiFetch(`/api/v1/meals/${id}`, { method: 'DELETE' });
@@ -964,6 +966,138 @@
 
       container.innerHTML = html;
     }
+
+    // ===== PENDING PHOTO QUEUE =====
+    let pendingPhotos = [];
+
+    window.addToPendingQueue = function() {
+      const cameraInput = $('#mealPhotoCamera');
+      const galleryInput = $('#mealPhotoGallery');
+      const notesInput = $('#mealNotes');
+
+      // Get file from whichever input has one
+      const photoInput = (cameraInput && cameraInput.files.length > 0) ? cameraInput :
+                         (galleryInput && galleryInput.files.length > 0) ? galleryInput : null;
+
+      if (!photoInput || photoInput.files.length === 0) {
+        showToast('Selecciona una foto primero.', 'warning');
+        return;
+      }
+
+      const file = photoInput.files[0];
+      const now = new Date();
+      const timeStr = now.getFullYear() + '-' +
+        String(now.getMonth()+1).padStart(2,'0') + '-' +
+        String(now.getDate()).padStart(2,'0') + 'T' +
+        String(now.getHours()).padStart(2,'0') + ':' +
+        String(now.getMinutes()).padStart(2,'0');
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        pendingPhotos.push({
+          dataUrl: e.target.result,
+          filename: file.name,
+          datetime: timeStr,
+          notes: notesInput ? notesInput.value : ''
+        });
+        renderPendingQueue();
+        // Clear inputs
+        if (cameraInput) cameraInput.value = '';
+        if (galleryInput) galleryInput.value = '';
+        const nameEl = $('#mealPhotoName');
+        if (nameEl) nameEl.style.display = 'none';
+        if (notesInput) notesInput.value = '';
+        showToast('Foto agregada a la cola (' + pendingPhotos.length + ' pendientes)', 'success');
+      };
+      reader.readAsDataURL(file);
+    };
+
+    function renderPendingQueue() {
+      const card = $('#pendingQueueCard');
+      const grid = $('#pendingPhotosGrid');
+      const countEl = $('#pendingCount');
+      const toProcess = $('#pendingToProcess');
+      const btnProcess = $('#btnProcessQueue');
+
+      if (!card || !grid) return;
+
+      if (pendingPhotos.length === 0) {
+        card.style.display = 'none';
+        if (countEl) { countEl.style.display = 'none'; countEl.textContent = '0'; }
+        return;
+      }
+
+      card.style.display = 'block';
+      if (countEl) { countEl.style.display = 'inline'; countEl.textContent = pendingPhotos.length; }
+      if (toProcess) toProcess.textContent = pendingPhotos.length;
+
+      grid.innerHTML = pendingPhotos.map((p, i) => `
+        <div class="pending-photo-card" style="display:flex;gap:12px;align-items:center;background:var(--bg-glass);border:1px solid var(--border-glass);border-radius:12px;padding:10px;">
+          <img src="${p.dataUrl}" style="width:60px;height:60px;object-fit:cover;border-radius:8px;">
+          <div style="flex:1;min-width:0;">
+            <input type="datetime-local" value="${p.datetime}" onchange="pendingPhotos[${i}].datetime=this.value"
+                   style="width:100%;padding:8px;background:rgba(255,255,255,0.05);border:1px solid var(--border-glass);border-radius:8px;color:var(--text-primary);font-size:0.82rem;">
+            <div style="font-size:0.72rem;color:var(--text-muted);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${p.filename}</div>
+          </div>
+          <button onclick="pendingPhotos.splice(${i},1); renderPendingQueue();"
+                  style="background:none;border:none;color:var(--accent-rose);font-size:1.2rem;cursor:pointer;padding:8px;min-width:44px;">✕</button>
+        </div>
+      `).join('');
+    }
+
+    window.processPendingQueue = async function() {
+      if (pendingPhotos.length === 0) {
+        showToast('No hay fotos pendientes.', 'warning');
+        return;
+      }
+
+      const btn = $('#btnProcessQueue');
+      const origText = btn.textContent;
+      btn.disabled = true;
+      let success = 0;
+
+      for (let i = 0; i < pendingPhotos.length; i++) {
+        const photo = pendingPhotos[i];
+        btn.textContent = '⏳ Analizando ' + (i+1) + '/' + pendingPhotos.length + '...';
+
+        try {
+          // Convert data URL to blob
+          const resp = await fetch(photo.dataUrl);
+          const blob = await resp.blob();
+
+          const formData = new FormData();
+          formData.append('photo', blob, photo.filename);
+          formData.append('meal_datetime', photo.datetime);
+          if (photo.notes) formData.append('notes', photo.notes);
+
+          const token = localStorage.getItem('azucar_token');
+          const res = await fetch('/api/v1/meals/upload', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + token },
+            body: formData
+          });
+
+          if (res.ok) {
+            success++;
+          } else {
+            const errData = await res.json().catch(() => ({}));
+            showToast('Error en foto ' + (i+1) + ': ' + (errData.detail || 'falló'), 'danger');
+          }
+        } catch (err) {
+          showToast('Error: ' + err.message, 'danger');
+        }
+      }
+
+      // Clear queue and refresh
+      pendingPhotos = [];
+      renderPendingQueue();
+      await loadMealsData();
+      btn.textContent = origText;
+      btn.disabled = false;
+      showToast('✅ ' + success + '/' + pendingPhotos.length + ' fotos analizadas con éxito', 'success');
+    };
+
+    window.renderPendingQueue = renderPendingQueue;
 
     // Update filename display when photo selected
     function updateMealPhotoName(input) {
@@ -2141,5 +2275,38 @@
           .catch(err => console.error('Service Worker registration failed:', err));
       }
     }
+
+    // Window aliases for inline onclick handlers
+    window.handleLogout = handleLogout;
+    window.toggleAuthMode = toggleAuthMode;
+    window.togglePasswordVisibility = togglePasswordVisibility;
+    window.testAIConnection = testAIConnection;
+    window.exportFHIRBundle = exportFHIRBundle;
+    window.selectProtocol = selectProtocol;
+    window.startFasting = startFasting;
+    window.stopFasting = stopFasting;
+    window.resetFasting = resetFasting;
+    window.startPostprandialAlarm = startPostprandialAlarm;
+    window.cancelPostprandialAlarm = cancelPostprandialAlarm;
+    window.startHydrationAlarm = startHydrationAlarm;
+    window.cancelHydrationAlarm = cancelHydrationAlarm;
+    window.setMetforminAlarm = setMetforminAlarm;
+    window.cancelMetforminAlarm = cancelMetforminAlarm;
+    window.addMedTimeInput = addMedTimeInput;
+    window.filterMedicationsByKind = filterMedicationsByKind;
+    window.openMealEditModal = openMealEditModal;
+    window.closeMealEditModal = closeMealEditModal;
+    window.saveMealEdit = saveMealEdit;
+    window.correctMealWithAI = correctMealWithAI;
+    window.toggleHabit = toggleHabit;
+    window.requestPushNotifications = requestPushNotifications;
+    window.handleProviderChange = handleProviderChange;
+    window.handleConfigSave = handleConfigSave;
+    window.handleChatSubmit = handleChatSubmit;
+    window.handleMealUpload = handleMealUpload;
+    window.generateMealPlan = generateMealPlan;
+    window.handleAuthSubmit = handleAuthSubmit;
+    window.navigateToTab = navigateToTab;
+    window.selectProtocol = selectProtocol;
 
     init();
