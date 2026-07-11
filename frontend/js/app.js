@@ -1982,6 +1982,46 @@
     const origShowConfirm = window.showConfirm;
     // haptic is handled by the global showConfirm defined in init
 
+    // ===== FORCE UPDATE =====
+    window.forceUpdateApp = async function() {
+      const btn = $('#btnUpdateApp');
+      if (!btn) return;
+      btn.textContent = '⏳ Actualizando...';
+      btn.disabled = true;
+
+      try {
+        // 1. Unregister all service workers
+        if ('serviceWorker' in navigator) {
+          const registrations = await navigator.serviceWorker.getRegistrations();
+          for (const reg of registrations) {
+            await reg.unregister();
+          }
+        }
+
+        // 2. Clear all cache storage
+        if ('caches' in window) {
+          const keys = await caches.keys();
+          await Promise.all(keys.map(k => caches.delete(k)));
+        }
+
+        // 3. Clear app cache keys from localStorage (keep auth + settings)
+        const keepKeys = ['azucar_token', 'azucar_theme', 'azucar_zoom', 'azucar_alarm_pp', 'azucar_alarm_hydration'];
+        const allKeys = Object.keys(localStorage);
+        for (const key of allKeys) {
+          if (!keepKeys.includes(key)) {
+            localStorage.removeItem(key);
+          }
+        }
+
+        showToast('✅ App actualizada. Recargando...', 'success');
+        setTimeout(() => window.location.reload(true), 500);
+      } catch (err) {
+        btn.textContent = '🔄 Buscar e instalar actualización';
+        btn.disabled = false;
+        showToast('Error al actualizar: ' + err.message, 'danger');
+      }
+    };
+
     // ===== ZOOM CONTROLS =====
     let currentZoom = 100;
     const ZOOM_STEP = 10;
