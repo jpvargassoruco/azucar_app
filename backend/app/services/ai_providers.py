@@ -81,9 +81,9 @@ def _build_google_payload(model: str, messages: list, json_mode: bool = False) -
 
     payload = {"contents": contents}
     if system_instruction:
-        payload["system_instruction"] = {"parts": [{"text": str(system_instruction)}]}
+        payload["systemInstruction"] = {"parts": [{"text": str(system_instruction)}]}
     if json_mode:
-        payload["generation_config"] = {"response_mime_type": "application/json"}
+        payload["generationConfig"] = {"responseMimeType": "application/json"}
 
     return payload
 
