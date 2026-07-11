@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 # Nvidia fallback config (loaded from env via settings)
 
 PROVIDER_DEFAULTS = {
-    "google":     {"url": "https://generativelanguage.googleapis.com/v1beta", "model": "gemini-2.0-flash"},
+    "google":     {"url": "https://generativelanguage.googleapis.com/v1beta", "model": "gemini-flash-latest"},
     "openrouter": {"url": "https://openrouter.ai/api/v1", "model": "openrouter/auto"},
     "deepseek":   {"url": "https://api.deepseek.com/v1", "model": "deepseek-chat"},
     "nvidia":     {"url": "https://integrate.api.nvidia.com/v1", "model": "nvidia/nemotron-3-super-120b-a12b"},
