@@ -56,5 +56,5 @@ async def delete_pressure(
     db_pressure = result.scalars().first()
     if not db_pressure:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Pressure reading not found")
-    await db.delete(db_pressure)
+    db.delete(db_pressure)
     await db.commit()
