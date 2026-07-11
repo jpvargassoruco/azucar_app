@@ -34,6 +34,7 @@ class UserResponse(UserBase):
     ai_base_url: Optional[str] = None
     has_ai_key: bool = False
     ai_api_key_masked: Optional[str] = None
+    height: Optional[int] = None
 
     class Config:
         from_attributes = True
@@ -43,6 +44,7 @@ class UserUpdateAI(BaseModel):
     ai_api_key: Optional[str] = None
     ai_model: Optional[str] = None
     ai_base_url: Optional[str] = None
+    height: Optional[int] = None
 
 class AITestRequest(BaseModel):
     ai_provider: str
