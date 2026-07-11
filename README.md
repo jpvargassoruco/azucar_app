@@ -70,6 +70,19 @@ azucar_app/
 | 🔍 **Zoom** | Ajuste de tamaño de interfaz |
 | 🔄 **Actualizar** | Botón para forzar actualización (limpia SW + caché) |
 
+## 🗺️ Roadmap
+
+Roadmap clínico enfocado en diabetes Tipo 2, derivado del análisis comparativo con [Diaguard](https://github.com/Faltenreich/Diaguard). Detalle completo (tabla de gap + notas de arquitectura) en **[ROADMAP.md](ROADMAP.md)**.
+
+| Fase | Foco |
+|------|------|
+| **1** | Signos vitales T2: peso/IMC, presión arterial, HbA1c de laboratorio |
+| **2** | Analítica de glucosa: tiempo-en-rango, eA1c/GMI, rango objetivo + alertas hipo/hiper |
+| **3** | Exportación y portabilidad: PDF (diario médico), CSV, backup/restore |
+| **4** | Logging enriquecido: actividad, pulso/SpO2, tags + búsqueda, carbohidratos manuales |
+| **5** | Unidades e i18n (opcional): mmol/L, multi-idioma |
+| **6** | Terapia con insulina (diferido): dosis y calculadora de bolo |
+
 ## 🤖 Proveedores de IA
 
 | Proveedor | Modelo | Costo |
@@ -79,7 +92,7 @@ azucar_app/
 | Deepseek | deepseek-chat | Pago por uso |
 | Nvidia NIM | Nemotron Super 120B | 5,000 créditos gratis |
 
-El proveedor se configura en **Configuración → IA**. Nvidia actúa como fallback automático si el proveedor principal falla.
+El proveedor se configura en **Configuración → IA**. Cada proveedor funciona de forma independiente: se usa el que el usuario configure, sin fallback cruzado automático a otro proveedor.
 
 ## 🔒 Seguridad
 
@@ -102,7 +115,6 @@ docker compose up -d --build
 DATABASE_URL=postgresql+asyncpg://user:pass@db:5432/azucar
 JWT_SECRET_KEY=<random>
 OPENROUTER_API_KEY=<key>
-FALLBACK_NVIDIA_KEY=<key>
 API_KEY_ENCRYPTION_KEY=<random_64_hex>
 ```
 
