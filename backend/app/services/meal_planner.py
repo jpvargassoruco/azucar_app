@@ -17,6 +17,10 @@ async def generate_meal_plan(health_context: str, preferences: str, num_meals: i
     
     if user and provider == "kimi" and not user.ai_base_url:
         base_url = "https://api.moonshot.cn/v1"
+    elif user and provider == "deepseek" and not user.ai_base_url:
+        base_url = "https://api.deepseek.com/v1"
+    elif user and provider == "nvidia" and not user.ai_base_url:
+        base_url = "https://integrate.api.nvidia.com/v1"
 
     if not api_key:
         raise ValueError("No API Key configured for meal planner.")

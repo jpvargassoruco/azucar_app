@@ -310,7 +310,18 @@
           <form id="mealForm" onsubmit="handleMealUpload(event)">
             <div class="form-group">
               <label class="form-label">Foto del Plato</label>
-              <input type="file" id="mealPhoto" accept="image/*" class="form-input" required style="padding: 10px;">
+              <!-- Hidden inputs: one for camera, one for gallery -->
+              <input type="file" id="mealPhotoCamera" accept="image/*" capture="environment" style="display:none;">
+              <input type="file" id="mealPhotoGallery" accept="image/*" style="display:none;">
+              <div style="display: flex; gap: 10px;">
+                <button type="button" id="btnCamera" class="btn btn-ghost" onclick="document.getElementById('mealPhotoCamera').click()" style="flex:1;">
+                  📷 Cámara
+                </button>
+                <button type="button" id="btnGallery" class="btn btn-ghost" onclick="document.getElementById('mealPhotoGallery').click()" style="flex:1;">
+                  🖼️ Galería
+                </button>
+              </div>
+              <div id="mealPhotoName" style="font-size:0.78rem; color:var(--text-muted); margin-top:6px; display:none;"></div>
             </div>
             <div class="form-group">
               <label class="form-label">Notas Adicionales (Opcional)</label>
@@ -322,22 +333,22 @@
           </form>
         </div>
 
-        <!-- Help/Guidelines Card -->
-        <div class="card">
-          <div class="card-header">
+        <!-- Help/Guidelines Card (Collapsible) -->
+        <details class="card" style="cursor: pointer;">
+          <summary class="card-header" style="list-style: none; outline: none;">
             <div class="icon-badge" style="background: rgba(167, 139, 250, 0.1); color: var(--accent-violet);">💡</div>
             <div>
               <h2>Instrucciones del Analizador</h2>
-              <p>Para obtener el mejor desglose nutricional por IA</p>
+              <p>Para obtener el mejor desglose nutricional por IA (click para expandir)</p>
             </div>
-          </div>
-          <div style="font-size: 0.82rem; color: var(--text-secondary); text-align: left; display: flex; flex-direction: column; gap: 10px;">
+          </summary>
+          <div style="font-size: 0.82rem; color: var(--text-secondary); text-align: left; display: flex; flex-direction: column; gap: 10px; margin-top: 16px;">
             <p>✔️ Asegúrate de que haya buena iluminación sobre tu plato.</p>
             <p>✔️ Intenta enfocar desde arriba para capturar todas las porciones.</p>
             <p>✔️ La IA desglosará estimaciones de calorías, proteínas, carbohidratos, grasas y fibra.</p>
             <p>⚠️ Las fotos originales se borran después del análisis, almacenando únicamente una miniatura comprimida para resguardar tu privacidad y espacio.</p>
           </div>
-        </div>
+        </details>
       </div>
 
       <!-- Historical Meals Feed -->
@@ -700,6 +711,7 @@
             <select id="configProvider" class="form-select" onchange="handleProviderChange()">
               <option value="openrouter">OpenRouter (Recomendado)</option>
               <option value="deepseek">Deepseek</option>
+              <option value="nvidia">Nvidia NIM (Gratuito)</option>
               <option value="kimi">Moonshot / Kimi 2.6</option>
             </select>
           </div>
@@ -718,7 +730,7 @@
             <label class="form-label">Base URL (Opcional)</label>
             <input type="text" id="configBaseUrl" class="form-input" placeholder="Por defecto según proveedor">
             <span style="font-size: 0.75rem; color: var(--text-muted); display: block; margin-top: 4px;">
-              Deepseek usa <strong>https://api.deepseek.com/v1</strong>. Kimi admite <strong>https://api.moonshot.cn/v1</strong> (nacional) o <strong>https://api.moonshot.ai/v1</strong> (internacional).
+              Nvidia usa <strong>https://integrate.api.nvidia.com/v1</strong> (gratuito, 5000 créditos). Deepseek usa <strong>https://api.deepseek.com/v1</strong>. Kimi admite <strong>https://api.moonshot.cn/v1</strong> (nacional) o <strong>https://api.moonshot.ai/v1</strong> (internacional).
             </span>
           </div>
 

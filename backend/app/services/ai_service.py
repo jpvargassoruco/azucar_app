@@ -106,7 +106,11 @@ async def query_hermes_agent(message: str, history: list, health_context: str, u
         
         if provider == "kimi" and not user.ai_base_url:
             base_url = "https://api.moonshot.cn/v1"
-            
+        elif provider == "deepseek" and not user.ai_base_url:
+            base_url = "https://api.deepseek.com/v1"
+        elif provider == "nvidia" and not user.ai_base_url:
+            base_url = "https://integrate.api.nvidia.com/v1"
+
         messages = [
             {
                 "role": "system",

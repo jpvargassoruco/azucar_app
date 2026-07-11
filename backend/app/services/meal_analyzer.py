@@ -19,9 +19,20 @@ async def analyze_meal_image(image_path: str, user: Optional[User] = None, healt
     model = user.ai_model if user and user.ai_model else settings.OPENROUTER_MODEL
     provider = user.ai_provider if user and user.ai_provider else "openrouter"
     
-    # Autofill defaults for Kimi
+    # Autofill defaults for providers
     if user and provider == "kimi" and not user.ai_base_url:
         base_url = "https://api.moonshot.cn/v1"
+    elif user and provider == "deepseek" and not user.ai_base_url:
+        base_url = "https://api.deepseek.com/v1"
+    elif user and provider == "nvidia" and not user.ai_base_url:
+        base_url = "https://integrate.api.nvidia.com/v1"
+
+    # Deepseek text models don't support vision — fall back to system OpenRouter
+    if user and provider == "deepseek":
+        logger.info("Deepseek is text-only. Falling back to system OpenRouter for vision analysis.")
+        api_key = settings.OPENROUTER_API_KEY
+        base_url = settings.OPENROUTER_BASE_URL
+        model = settings.OPENROUTER_MODEL
 
     if not api_key:
         logger.warning("No API Key configured for meal analysis. Returning fallback.")
@@ -114,8 +125,13 @@ async def correct_meal_analysis(current_analysis: dict, correction_comment: str,
     model = user.ai_model if user and user.ai_model else settings.OPENROUTER_MODEL
     provider = user.ai_provider if user and user.ai_provider else "openrouter"
     
+    # Autofill defaults for providers
     if user and provider == "kimi" and not user.ai_base_url:
         base_url = "https://api.moonshot.cn/v1"
+    elif user and provider == "deepseek" and not user.ai_base_url:
+        base_url = "https://api.deepseek.com/v1"
+    elif user and provider == "nvidia" and not user.ai_base_url:
+        base_url = "https://integrate.api.nvidia.com/v1"
 
     if not api_key:
         logger.warning("No API Key configured for meal analysis. Returning current.")

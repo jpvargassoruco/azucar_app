@@ -398,8 +398,13 @@
           modelInput.value = 'deepseek-chat';
         }
         urlInput.placeholder = 'https://api.deepseek.com/v1';
+      } else if (provider === 'nvidia') {
+        if (!modelInput.value || modelInput.value === 'openrouter/auto' || modelInput.value === 'kimi-k2.6' || modelInput.value === 'deepseek-chat') {
+          modelInput.value = 'nvidia/nemotron-3-super-120b-a12b';
+        }
+        urlInput.placeholder = 'https://integrate.api.nvidia.com/v1';
       } else {
-        if (!modelInput.value || modelInput.value === 'kimi-k2.6' || modelInput.value === 'deepseek-chat') {
+        if (!modelInput.value || modelInput.value === 'kimi-k2.6' || modelInput.value === 'deepseek-chat' || modelInput.value.startsWith('nvidia/')) {
           modelInput.value = 'openrouter/auto';
         }
         urlInput.placeholder = 'https://openrouter.ai/api/v1';
@@ -966,27 +971,54 @@
       container.innerHTML = html;
     }
 
+    // Update filename display when photo selected
+    function updateMealPhotoName(input) {
+      const nameEl = $('#mealPhotoName');
+      if (input.files.length > 0) {
+        nameEl.textContent = '📎 ' + input.files[0].name;
+        nameEl.style.display = 'block';
+        // Clear the other input so we know which one was used
+        const otherId = input.id === 'mealPhotoCamera' ? 'mealPhotoGallery' : 'mealPhotoCamera';
+        const otherInput = $(`#${otherId}`);
+        if (otherInput) otherInput.value = '';
+        // Enable submit button
+        $('#btnUploadMeal').disabled = false;
+      }
+    }
+
+    // Attach change handlers to both inputs
+    const cameraInput = $('#mealPhotoCamera');
+    const galleryInput = $('#mealPhotoGallery');
+    if (cameraInput) cameraInput.addEventListener('change', () => updateMealPhotoName(cameraInput));
+    if (galleryInput) galleryInput.addEventListener('change', () => updateMealPhotoName(galleryInput));
+
     async function handleMealUpload(e) {
       e.preventDefault();
-      const photoInput = $('#mealPhoto');
+      const cameraInput = $('#mealPhotoCamera');
+      const galleryInput = $('#mealPhotoGallery');
       const notesInput = $('#mealNotes');
       const btn = $('#btnUploadMeal');
-      
-      if (photoInput.files.length === 0) {
+      const nameEl = $('#mealPhotoName');
+
+      // Get file from whichever input has one
+      const photoInput = (cameraInput && cameraInput.files.length > 0) ? cameraInput :
+                         (galleryInput && galleryInput.files.length > 0) ? galleryInput : null;
+
+      if (!photoInput || photoInput.files.length === 0) {
         showToast('Por favor, selecciona una foto de comida.', 'warning');
         return;
       }
-      
+
       const formData = new FormData();
       formData.append('photo', photoInput.files[0]);
       if (notesInput.value) {
         formData.append('notes', notesInput.value);
       }
-      
+
       const originalText = btn.textContent;
       btn.textContent = '⏳ Analizando con Vision IA...';
       btn.disabled = true;
-      
+
       try {
         const token = localStorage.getItem('azucar_token');
         const res = await fetch('/api/v1/meals/upload', {
@@ -996,14 +1028,16 @@
           },
           body: formData
         });
-        
+
         if (!res.ok) {
           const errData = await res.json().catch(() => ({}));
           throw new Error(errData.detail || 'Vision API failed');
         }
-        
+
         showToast('Plato analizado con éxito', 'success');
-        photoInput.value = '';
+        if (cameraInput) cameraInput.value = '';
+        if (galleryInput) galleryInput.value = '';
+        if (nameEl) nameEl.style.display = 'none';
         notesInput.value = '';
         await loadMealsData();
       } catch (err) {
@@ -1225,10 +1259,14 @@
       try {
         const dbAlarms = await apiFetch('/api/v1/alarms/');
         // Sync local clocks with database configs
+        let dbHydrationActive = false;
         dbAlarms.forEach(alarm => {
           if (alarm.type === 'metformina' && alarm.is_active) {
             $('#metforminTime').value = alarm.config_time;
             restoreLocalMetformin(alarm.config_time);
+          }
+          if (alarm.type === 'hidratacion' && alarm.is_active) {
+            dbHydrationActive = true;
           }
         });
         
@@ -1245,8 +1283,14 @@
         }
         
         const hydEnd = localStorage.getItem('azucar_alarm_hydration');
-        if (hydEnd && parseInt(hydEnd) > Date.now()) {
-          alarmEndTimes.hydration = parseInt(hydEnd);
+        if ((hydEnd && parseInt(hydEnd) > Date.now()) || dbHydrationActive) {
+          if (hydEnd && parseInt(hydEnd) > Date.now()) {
+            alarmEndTimes.hydration = parseInt(hydEnd);
+          } else if (dbHydrationActive) {
+            // Restore timer even if localStorage expired
+            alarmEndTimes.hydration = Date.now() + (2 * 60 * 60 * 1000);
+            localStorage.setItem('azucar_alarm_hydration', alarmEndTimes.hydration);
+          }
           $('#btnStartHydration').classList.add('hidden');
           $('#btnCancelHydration').classList.remove('hidden');
           $('#alarmHydration').classList.add('active-alarm');
@@ -1351,7 +1395,7 @@
     }
 
     // Hydration Timer
-    function startHydrationAlarm() {
+    async function startHydrationAlarm() {
       const twoHoursMs = 2 * 60 * 60 * 1000;
       alarmEndTimes.hydration = Date.now() + twoHoursMs;
       localStorage.setItem('azucar_alarm_hydration', alarmEndTimes.hydration);
@@ -1365,6 +1409,19 @@
       if (alarmIntervals.hydration) clearInterval(alarmIntervals.hydration);
       alarmIntervals.hydration = setInterval(updateHydrationTimer, 1000);
       updateHydrationTimer();
+
+      // Register hydration alarm in DB for server-side push notification
+      try {
+        const triggerTime = new Date(Date.now() + twoHoursMs);
+        const hh = String(triggerTime.getHours()).padStart(2, '0');
+        const mm = String(triggerTime.getMinutes()).padStart(2, '0');
+        await apiFetch('/api/v1/alarms/', {
+          method: 'POST',
+          body: JSON.stringify({ type: 'hidratacion', config_time: `${hh}:${mm}`, is_active: true })
+        });
+      } catch (err) {
+        console.error('Failed to register hydration alarm in DB:', err);
+      }
     }
 
     function updateHydrationTimer() {
@@ -1381,10 +1438,24 @@
           $('#alarmHydration').classList.remove('ringing');
         }, 5000);
 
-        // Auto restart local cycle
+        // Auto restart local cycle + re-register in DB
         const twoHoursMs = 2 * 60 * 60 * 1000;
         alarmEndTimes.hydration = Date.now() + twoHoursMs;
         localStorage.setItem('azucar_alarm_hydration', alarmEndTimes.hydration);
+        // Re-register in DB for next push notification
+        (async () => {
+          try {
+            const triggerTime = new Date(Date.now() + twoHoursMs);
+            const hh = String(triggerTime.getHours()).padStart(2, '0');
+            const mm = String(triggerTime.getMinutes()).padStart(2, '0');
+            await apiFetch('/api/v1/alarms/', {
+              method: 'POST',
+              body: JSON.stringify({ type: 'hidratacion', config_time: `${hh}:${mm}`, is_active: true })
+            });
+          } catch (err) {
+            console.error('Failed to re-register hydration alarm:', err);
+          }
+        })();
         return;
       }
 
@@ -1398,11 +1469,21 @@
       $('#hydrationTimerDisplay').style.color = 'var(--accent-cyan)';
     }
 
-    function cancelHydrationAlarm() {
+    async function cancelHydrationAlarm() {
       if (alarmIntervals.hydration) clearInterval(alarmIntervals.hydration);
       alarmIntervals.hydration = null;
       alarmEndTimes.hydration = null;
       localStorage.removeItem('azucar_alarm_hydration');
+
+      // Deactivate in DB
+      try {
+        await apiFetch('/api/v1/alarms/', {
+          method: 'POST',
+          body: JSON.stringify({ type: 'hidratacion', config_time: '00:00', is_active: false })
+        });
+      } catch (err) {
+        console.error('Failed to deactivate hydration alarm in DB:', err);
+      }
 
       $('#hydrationTimerDisplay').textContent = '--:--';
       $('#hydrationTimerDisplay').style.color = 'var(--text-muted)';
