@@ -397,16 +397,9 @@
       const defaults = PROVIDER_DEFAULTS[provider];
 
       if (defaults) {
-        // Auto-fill model if empty or from a different provider
-        const knownModels = Object.values(PROVIDER_DEFAULTS).map(d => d.model);
-        if (!modelInput.value || knownModels.includes(modelInput.value)) {
-          modelInput.value = defaults.model;
-        }
-        // Auto-fill URL if empty or from a different provider
-        const knownUrls = Object.values(PROVIDER_DEFAULTS).map(d => d.url);
-        if (!urlInput.value || knownUrls.includes(urlInput.value)) {
-          urlInput.value = defaults.url;
-        }
+        // Always set model and URL to provider defaults when switching
+        modelInput.value = defaults.model;
+        urlInput.value = defaults.url;
         urlInput.placeholder = defaults.url;
       }
     }
@@ -2011,8 +2004,7 @@
     };
 
     function applyZoom() {
-      document.querySelector('.app-container').style.transform = `scale(${currentZoom / 100})`;
-      document.querySelector('.app-container').style.transformOrigin = 'top center';
+      document.documentElement.style.fontSize = currentZoom + '%';
       const zoomEl = $('#zoomLevel');
       if (zoomEl) zoomEl.textContent = currentZoom + '%';
       localStorage.setItem('azucar_zoom', currentZoom);

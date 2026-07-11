@@ -168,7 +168,7 @@
       opacity: 0;
       pointer-events: none;
     }
-    .auth-card {
+    .auth-card, .auth-box {
       background: var(--bg-card);
       border: 1px solid var(--border-glass);
       border-radius: var(--radius-xl);
@@ -179,6 +179,7 @@
       overflow-y: auto;
       text-align: center;
       box-shadow: var(--shadow-lg);
+      -webkit-overflow-scrolling: touch;
     }
     .auth-card h2 {
       margin-top: 15px;
