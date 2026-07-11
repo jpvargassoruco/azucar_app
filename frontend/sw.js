@@ -1,8 +1,11 @@
-const CACHE_NAME = 'azucar-cache-v1';
+const CACHE_NAME = 'azucar-cache-v2';
 const ASSETS = [
   '/',
   '/index.html',
   '/manifest.json',
+  '/css/app.css',
+  '/js/app.js',
+  '/js/theme.js',
   'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap'
 ];
 
