@@ -6,6 +6,7 @@ from app.schemas.alarm import AlarmCreate, AlarmUpdate, AlarmResponse
 from app.schemas.meal import MealEntryResponse, AIAnalysisDetail
 from app.schemas.push import PushSubscriptionCreate
 from app.schemas.ai import AIChatRequest, AIChatResponse
+from app.schemas.hba1c import HbA1cCreate, HbA1cResponse
 
 __all__ = [
     "UserCreate",
@@ -28,4 +29,6 @@ __all__ = [
     "PushSubscriptionCreate",
     "AIChatRequest",
     "AIChatResponse",
+    "HbA1cCreate",
+    "HbA1cResponse",
 ]
