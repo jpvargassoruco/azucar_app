@@ -166,6 +166,55 @@ async def check_medications():
             await redis_client.rpush("notifications_queue", json.dumps(job_payload))
             logger.info(f"Queued medication notification for user ID {user_id} (Medication: {name})")
 
+        # Check for overdue doses (scheduled in the past, not yet logged)
+        for row in active_medications:
+            if current_weekday not in json.loads(row["days_of_week"]):
+                continue
+
+            for time_str in json.loads(row["times"]):
+                # Parse scheduled time
+                try:
+                    sched_h, sched_m = map(int, time_str.split(":"))
+                    sched_minutes = sched_h * 60 + sched_m
+                    curr_minutes = now_local.hour * 60 + now_local.minute
+                    diff = curr_minutes - sched_minutes
+                except (ValueError, AttributeError):
+                    continue
+
+                # Overdue: 15-120 minutes past scheduled time
+                if not (15 <= diff <= 120):
+                    continue
+
+                # Check if already logged today
+                log_query = """
+                    SELECT status FROM medication_logs
+                    WHERE medication_id = $1 AND date = $2 AND scheduled_time = $3
+                    LIMIT 1
+                """
+                log_row = await conn.fetchrow(log_query, row["id"], now_local.date(), time_str)
+                if log_row:
+                    continue  # Already taken/skipped
+
+                # Check Redis to avoid duplicate overdue notifications
+                dedup_key = f"overdue_med:{row['id']}:{now_local.strftime('%Y-%m-%d')}:{time_str}"
+                already_sent = await redis_client.get(dedup_key)
+                if already_sent:
+                    continue
+
+                emoji = "💊" if row["kind"] == "medication" else "🌿"
+                label = "medicamento" if row["kind"] == "medication" else "suplemento"
+                mins_ago = diff
+
+                overdue_payload = {
+                    "user_id": row["user_id"],
+                    "title": f"⚠️ Dosis vencida: {row['name']}",
+                    "body": f"Hola {row['user_name']}, la dosis de {label} {row['name']} estaba programada para las {time_str} (hace {mins_ago} min). No olvides tomarla.",
+                    "url": "/#medications"
+                }
+                await redis_client.rpush("notifications_queue", json.dumps(overdue_payload))
+                await redis_client.setex(dedup_key, 86400, "1")  # Don't repeat for 24h
+                logger.info(f"Queued overdue notification for user {row['user_id']} ({row['name']} at {time_str})")
+
     except Exception as ex:
         logger.error(f"Error checking medications: {ex}")
     finally:

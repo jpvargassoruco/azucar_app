@@ -1007,7 +1007,15 @@
         const nameEl = $('#mealPhotoName');
         if (nameEl) nameEl.style.display = 'none';
         if (notesInput) notesInput.value = '';
-        showToast('Foto agregada a la cola (' + pendingPhotos.length + ' pendientes)', 'success');
+        showToast('📋 ' + pendingPhotos.length + ' foto(s) en cola. Desliza hacia abajo para verlas.', 'success');
+        // Auto-scroll to queue
+        setTimeout(() => {
+          const card = $('#pendingQueueCard');
+          if (card) card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 200);
+      };
+      reader.onerror = function() {
+        showToast('Error al leer la imagen. Intenta de nuevo.', 'danger');
       };
       reader.readAsDataURL(file);
     };
@@ -1089,12 +1097,15 @@
       }
 
       // Clear queue and refresh
+      const total = pendingPhotos.length;
       pendingPhotos = [];
       renderPendingQueue();
       await loadMealsData();
       btn.textContent = origText;
       btn.disabled = false;
-      showToast('✅ ' + success + '/' + pendingPhotos.length + ' fotos analizadas con éxito', 'success');
+      if (success > 0) {
+        showToast('✅ ' + success + '/' + total + ' fotos analizadas con éxito', 'success');
+      }
     };
 
     window.renderPendingQueue = renderPendingQueue;
@@ -1815,11 +1826,32 @@
               <div style="font-size:0.75rem; color:var(--text-muted);">${med.times.join(', ')} · ${days}</div>
             </div>
           </div>
-          <button class="delete-btn" onclick="deleteMedication(${med.id})" title="Eliminar">🗑️</button>
+          <div style="display:flex;gap:4px;">
+            <button class="delete-btn" onclick="editMedication(${med.id})" title="Editar" style="font-size:0.9rem;">✏️</button>
+            <button class="delete-btn" onclick="deleteMedication(${med.id})" title="Eliminar">🗑️</button>
+          </div>
         `;
         container.appendChild(card);
       });
     }
+
+    let editingMedicationId = null;
+
+    window.editMedication = function(id) {
+      const med = allMedications.find(m => m.id === id);
+      if (!med) return;
+      editingMedicationId = id;
+      $('#medName').value = med.name;
+      $('#medKind').value = med.kind;
+      $('#medDosage').value = med.dosage || '';
+      $('#medTimesContainer').innerHTML = med.times.map(t =>
+        `<input type="time" class="form-input med-time-input" style="width:120px;" value="${t}">`
+      ).join('');
+      // Set day checkboxes
+      $$('.med-day-checkbox').forEach(cb => { cb.checked = med.days_of_week.includes(parseInt(cb.value)); });
+      $('#btnSaveMed').textContent = '💾 Guardar Cambios';
+      window.scrollTo(0, $('#sectionMedications').offsetTop);
+    };
 
     function addMedTimeInput() {
       const container = $('#medTimesContainer');
@@ -1842,9 +1874,13 @@
         return;
       }
 
+      const isEdit = !!editingMedicationId;
+      const method = isEdit ? 'PUT' : 'POST';
+      const url = isEdit ? `/api/v1/medications/${editingMedicationId}` : '/api/v1/medications/';
+
       try {
-        await apiFetch('/api/v1/medications/', {
-          method: 'POST',
+        await apiFetch(url, {
+          method,
           body: JSON.stringify({
             name: $('#medName').value,
             kind: $('#medKind').value,
@@ -1854,14 +1890,17 @@
             is_active: true
           })
         });
-        showToast('Medicamento agregado', 'success');
+        showToast(isEdit ? 'Medicamento actualizado' : 'Medicamento agregado', 'success');
+        // Reset form
+        editingMedicationId = null;
         $('#medicationForm').reset();
+        $('#btnSaveMed').textContent = '➕ Agregar Medicamento';
         $('#medTimesContainer').innerHTML = '<input type="time" class="form-input med-time-input" style="width:120px;" value="08:00">';
         $$('.med-day-checkbox').forEach(el => el.checked = true);
         await loadMedications();
         await loadTodayDoses();
       } catch (err) {
-        showToast('Error al agregar: ' + err.message, 'danger');
+        showToast('Error: ' + err.message, 'danger');
       }
     }
 
