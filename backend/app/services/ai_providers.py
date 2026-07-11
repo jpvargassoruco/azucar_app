@@ -151,17 +151,21 @@ async def _call_openai_compatible(messages, model, api_key, base_url, json_mode,
 
 
 async def _call_google(messages, model, api_key, base_url, json_mode, timeout):
-    headers = {"Content-Type": "application/json"}
+    headers = {
+        "Content-Type": "application/json",
+        "X-goog-api-key": api_key,
+    }
     payload = _build_google_payload(model, messages, json_mode)
 
-    # Google AI Studio requires API key as query param
+    # Google AI Studio: key as both query param and header for compatibility
     url = f"{base_url.rstrip('/')}/models/{model}:generateContent?key={api_key}"
 
-    logger.info(f"Calling Google AI: model={model} url={url[:80]}...")
+    logger.info(f"Calling Google AI: model={model}")
 
     async with httpx.AsyncClient(timeout=timeout) as client:
         resp = await client.post(url, headers=headers, json=payload)
         if not resp.is_success:
-            logger.error(f"Google AI error: {resp.status_code} {resp.text[:300]}")
-        resp.raise_for_status()
+            body = resp.text[:500]
+            logger.error(f"Google AI error {resp.status_code}: {body}")
+            raise Exception(f"Google AI error {resp.status_code}: {body}")
         return _parse_google_response(resp.json())
