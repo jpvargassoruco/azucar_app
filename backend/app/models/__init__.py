@@ -8,6 +8,7 @@ from app.models.meal import MealEntry
 from app.models.push_subscription import PushSubscription
 from app.models.meal_plan import MealPlan
 from app.models.medication import Medication, MedicationLog
+from app.models.weight import Weight
 
 __all__ = [
     "Base",
@@ -21,4 +22,5 @@ __all__ = [
     "MealPlan",
     "Medication",
     "MedicationLog",
+    "Weight",
 ]
