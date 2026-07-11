@@ -39,7 +39,9 @@ class User(Base):
     def ai_api_key_masked(self) -> Optional[str]:
         if not self.ai_api_key:
             return None
-        key = self.ai_api_key.strip()
+        from app.auth.security import decrypt_api_key
+        key = decrypt_api_key(self.ai_api_key) or self.ai_api_key
+        key = key.strip()
         if len(key) <= 8:
             return "****"
         return f"{key[:4]}...{key[-4:]}"

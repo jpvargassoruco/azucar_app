@@ -11,7 +11,10 @@ class Settings(BaseSettings):
     # JWT Auth
     JWT_SECRET_KEY: str
     JWT_ALGORITHM: str = "HS256"
-    JWT_EXPIRE_MINUTES: int = 10080  # 7 days
+    JWT_EXPIRE_MINUTES: int = 60  # access token: 1 hour
+
+    # Encryption key for user API keys at rest
+    API_KEY_ENCRYPTION_KEY: str = ""
     
     # Push Notifications
     VAPID_PUBLIC_KEY: str = ""
@@ -24,6 +27,11 @@ class Settings(BaseSettings):
     OPENROUTER_BASE_URL: str = "https://openrouter.ai/api/v1"
     HERMES_API_KEY: str = ""
     HERMES_URL: str = "http://hermes:8642"
+
+    # Nvidia fallback
+    FALLBACK_NVIDIA_KEY: str = ""
+    FALLBACK_NVIDIA_URL: str = "https://integrate.api.nvidia.com/v1"
+    FALLBACK_NVIDIA_MODEL: str = "nvidia/nemotron-3-super-120b-a12b"
     
     # Uploads
     MAX_UPLOAD_SIZE_MB: int = 10

@@ -7,7 +7,7 @@ from typing import Optional
 from app.database import get_db
 from app.models.user import User
 from app.schemas.user import UserCreate, UserResponse, Token, UserUpdateAI, AITestRequest
-from app.auth.security import get_password_hash, verify_password, create_access_token
+from app.auth.security import get_password_hash, verify_password, create_access_token, encrypt_api_key, decrypt_api_key
 from app.auth.dependencies import get_current_user
 
 router = APIRouter()
@@ -44,14 +44,15 @@ async def login_user(
     
     if not user or not verify_password(form_data.password, user.hashed_password):
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Correo electrónico o contraseña incorrectos."
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Correo electrónico o contraseña incorrectos.",
+            headers={"WWW-Authenticate": "Bearer"},
         )
-        
+
     if not user.is_active:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="El usuario está inactivo."
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="La cuenta de usuario está desactivada."
         )
     
     access_token = create_access_token(subject=user.id)
@@ -86,7 +87,7 @@ async def update_ai_settings(
             # Keep the existing key if they submit the masked representation
             pass
         else:
-            current_user.ai_api_key = key_value
+            current_user.ai_api_key = encrypt_api_key(key_value)
             
     db.add(current_user)
     await db.commit()

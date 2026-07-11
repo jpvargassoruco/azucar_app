@@ -9,13 +9,11 @@ import base64
 import logging
 from typing import Optional, List, Dict, Any
 from app.config import settings
+from app.auth.security import decrypt_api_key
 
 logger = logging.getLogger(__name__)
 
-# Nvidia fallback API key (pre-configured)
-FALLBACK_NVIDIA_KEY = "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"
-FALLBACK_NVIDIA_URL = "https://integrate.api.nvidia.com/v1"
-FALLBACK_NVIDIA_MODEL = "nvidia/nemotron-3-super-120b-a12b"
+# Nvidia fallback config (loaded from env via settings)
 
 PROVIDER_DEFAULTS = {
     "google":     {"url": "https://generativelanguage.googleapis.com/v1beta", "model": "gemini-2.5-flash"},
@@ -28,7 +26,8 @@ PROVIDER_DEFAULTS = {
 def _resolve_config(user, provider_override=None):
     """Resolve API key, base URL, and model from user settings or system defaults."""
     provider = provider_override or (user.ai_provider if user and user.ai_provider else "openrouter")
-    api_key = user.ai_api_key if user and user.ai_api_key else settings.OPENROUTER_API_KEY
+    raw_key = user.ai_api_key if user and user.ai_api_key else None
+    api_key = decrypt_api_key(raw_key) if raw_key else settings.OPENROUTER_API_KEY
     model = user.ai_model if user and user.ai_model else PROVIDER_DEFAULTS.get(provider, {}).get("model", "openrouter/auto")
     base_url = user.ai_base_url if user and user.ai_base_url else PROVIDER_DEFAULTS.get(provider, {}).get("url", settings.OPENROUTER_BASE_URL)
 
@@ -132,8 +131,8 @@ async def call_ai(
             logger.info("Falling back to Nvidia API...")
             try:
                 return await _call_openai_compatible(
-                    messages, FALLBACK_NVIDIA_MODEL, FALLBACK_NVIDIA_KEY,
-                    FALLBACK_NVIDIA_URL, json_mode, temperature, timeout, headers
+                    messages, settings.FALLBACK_NVIDIA_MODEL, settings.FALLBACK_NVIDIA_KEY,
+                    settings.FALLBACK_NVIDIA_URL, json_mode, temperature, timeout, headers
                 )
             except Exception as fb_err:
                 logger.error(f"Fallback also failed: {fb_err}")
