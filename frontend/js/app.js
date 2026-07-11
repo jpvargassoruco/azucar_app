@@ -1093,6 +1093,8 @@
                                (data.ai_analysis?.recommendation || '').includes('No se pudo conectar');
             if (isFallback) {
               failed.push(photo);
+              // AI failed - discard the fake fallback entry the backend already saved
+              try { await apiFetch(`/api/v1/meals/${data.id}`, { method: 'DELETE' }); } catch (e) {}
               showToast('⚠️ Foto ' + (i+1) + ' no reconocida. La IA no pudo identificar el alimento. Queda en cola.', 'warning');
             } else {
               success++;
@@ -1193,6 +1195,8 @@
         const isFallback = foods.some(f => f.includes('Fallback')) ||
                            (data.ai_analysis?.recommendation || '').includes('No se pudo conectar');
         if (isFallback) {
+          // AI failed - discard the fake fallback entry the backend already saved
+          try { await apiFetch(`/api/v1/meals/${data.id}`, { method: 'DELETE' }); } catch (e) {}
           showToast('⚠️ La IA no pudo reconocer el alimento. Intentá con otra foto o usa la cola para reintentar.', 'warning');
         } else {
           showToast('Plato analizado con éxito', 'success');
