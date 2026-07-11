@@ -384,7 +384,7 @@
 
     // Provider defaults: model + base URL
     const PROVIDER_DEFAULTS = {
-      google:    { model: 'gemini-2.5-flash',     url: 'https://generativelanguage.googleapis.com/v1beta' },
+      google:    { model: 'gemini-2.0-flash',     url: 'https://generativelanguage.googleapis.com/v1beta' },
       openrouter:{ model: 'openrouter/auto',      url: 'https://openrouter.ai/api/v1' },
       deepseek:  { model: 'deepseek-chat',        url: 'https://api.deepseek.com/v1' },
       nvidia:    { model: 'nvidia/nemotron-3-super-120b-a12b', url: 'https://integrate.api.nvidia.com/v1' }

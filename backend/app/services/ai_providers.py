@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 # Nvidia fallback config (loaded from env via settings)
 
 PROVIDER_DEFAULTS = {
-    "google":     {"url": "https://generativelanguage.googleapis.com/v1beta", "model": "gemini-2.5-flash"},
+    "google":     {"url": "https://generativelanguage.googleapis.com/v1beta", "model": "gemini-2.0-flash"},
     "openrouter": {"url": "https://openrouter.ai/api/v1", "model": "openrouter/auto"},
     "deepseek":   {"url": "https://api.deepseek.com/v1", "model": "deepseek-chat"},
     "nvidia":     {"url": "https://integrate.api.nvidia.com/v1", "model": "nvidia/nemotron-3-super-120b-a12b"},
@@ -151,14 +151,17 @@ async def _call_openai_compatible(messages, model, api_key, base_url, json_mode,
 
 
 async def _call_google(messages, model, api_key, base_url, json_mode, timeout):
-    headers = {"Content-Type": "application/json", "X-goog-api-key": api_key}
+    headers = {"Content-Type": "application/json"}
     payload = _build_google_payload(model, messages, json_mode)
 
-    url = f"{base_url.rstrip('/')}/models/{model}:generateContent"
+    # Google AI Studio requires API key as query param
+    url = f"{base_url.rstrip('/')}/models/{model}:generateContent?key={api_key}"
 
-    logger.info(f"Calling Google AI: model={model}")
+    logger.info(f"Calling Google AI: model={model} url={url[:80]}...")
 
     async with httpx.AsyncClient(timeout=timeout) as client:
         resp = await client.post(url, headers=headers, json=payload)
+        if not resp.is_success:
+            logger.error(f"Google AI error: {resp.status_code} {resp.text[:300]}")
         resp.raise_for_status()
         return _parse_google_response(resp.json())
