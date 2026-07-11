@@ -238,7 +238,10 @@
       habits: 'sectionHabits',
       medications: 'sectionMedications',
       ai: 'sectionAi',
-      config: 'sectionConfig'
+      config: 'sectionConfig',
+      weight: 'weightTab',
+      pressure: 'pressureTab',
+      hba1c: 'hba1cTab'
     };
 
     function navigateToTab(tabName) {

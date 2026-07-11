@@ -226,7 +226,7 @@
     </section>
 
     <!-- WEIGHT -->
-    <div id="weightTab" class="tab-content">
+    <div id="weightTab" class="tab-section">
       <h2>📏 Peso</h2>
       <div class="form-group">
         <label>Peso (kg):</label>
@@ -241,7 +241,7 @@
     </div>
 
     <!-- PRESSURE -->
-    <div id="pressureTab" class="tab-content">
+    <div id="pressureTab" class="tab-section">
       <h2>💧 Presión Arterial</h2>
       <div class="form-group">
         <label>Sistólica (mmHg):</label>
@@ -260,7 +260,7 @@
     </div>
 
     <!-- HbA1c -->
-    <div id="hba1cTab" class="tab-content">
+    <div id="hba1cTab" class="tab-section">
       <h2>🩸 HbA1c</h2>
       <div class="form-group">
         <label>HbA1c (%):</label>
@@ -877,6 +877,15 @@
     <div class="bottom-sheet-panel">
       <div class="bottom-sheet-handle"></div>
       <div class="bottom-sheet-header">Más opciones</div>
+      <button class="sheet-item" data-tab="weight">
+        <span class="sheet-icon">📏</span>Peso
+      </button>
+      <button class="sheet-item" data-tab="pressure">
+        <span class="sheet-icon">💧</span>Presión
+      </button>
+      <button class="sheet-item" data-tab="hba1c">
+        <span class="sheet-icon">🩸</span>HbA1c
+      </button>
       <button class="sheet-item" data-tab="alarms">
         <span class="sheet-icon">⏰</span>Alarmas
       </button>
