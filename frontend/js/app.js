@@ -216,6 +216,7 @@
         await loadAlarms();
         await loadMedications();
         await loadTodayDoses();
+        await loadAllVitals();
       } catch (err) {
         console.error("Initialization failed", err);
       }
@@ -913,6 +914,182 @@
         btn.textContent = originalText;
         btn.disabled = false;
       }
+    }
+
+    // ===== 3.5. VITALS (WEIGHT, PRESSURE, HbA1c) =====
+    async function loadWeights() {
+      try {
+        const res = await apiFetch('/api/v1/weights/');
+        const weights = res || [];
+        const historyEl = $('#weightHistory');
+        historyEl.innerHTML = weights.length > 0
+          ? '<table>' + weights.map(w => `
+            <tr>
+              <td>${new Date(w.datetime).toLocaleString()}</td>
+              <td>${w.weight_kg} kg</td>
+              <td>${w.notes || '—'}</td>
+              <td><button onclick="deleteWeight(${w.id})" class="delete-btn">Borrar</button></td>
+            </tr>`).join('') + '</table>'
+          : '<p>Sin registros.</p>';
+      } catch (err) {
+        showToast('Error al cargar pesos: ' + err.message, 'danger');
+      }
+    }
+
+    async function addWeight() {
+      const weight_kg = parseFloat($('#weightInput').value);
+      const notes = $('#weightNotes').value;
+      if (!weight_kg || weight_kg <= 0 || weight_kg > 300) {
+        showToast('Peso inválido (0–300 kg)', 'warning');
+        return;
+      }
+      try {
+        await apiFetch('/api/v1/weights/', {
+          method: 'POST',
+          body: JSON.stringify({
+            datetime: new Date().toISOString(),
+            weight_kg: weight_kg,
+            notes: notes || null
+          })
+        });
+        $('#weightInput').value = '';
+        $('#weightNotes').value = '';
+        showToast('Peso guardado', 'success');
+        loadWeights();
+      } catch (err) {
+        showToast('Error al guardar peso: ' + err.message, 'danger');
+      }
+    }
+
+    async function deleteWeight(id) {
+      if (!await showConfirm('¿Borrar este peso?')) return;
+      try {
+        await apiFetch(`/api/v1/weights/${id}`, { method: 'DELETE' });
+        showToast('Peso borrado', 'success');
+        loadWeights();
+      } catch (err) {
+        showToast('Error al borrar: ' + err.message, 'danger');
+      }
+    }
+
+    async function loadPressures() {
+      try {
+        const res = await apiFetch('/api/v1/pressures/');
+        const pressures = res || [];
+        const historyEl = $('#pressureHistory');
+        historyEl.innerHTML = pressures.length > 0
+          ? '<table>' + pressures.map(p => `
+            <tr>
+              <td>${new Date(p.datetime).toLocaleString()}</td>
+              <td>${p.systolic_mmhg}/${p.diastolic_mmhg} mmHg</td>
+              <td>${p.notes || '—'}</td>
+              <td><button onclick="deletePressure(${p.id})" class="delete-btn">Borrar</button></td>
+            </tr>`).join('') + '</table>'
+          : '<p>Sin registros.</p>';
+      } catch (err) {
+        showToast('Error al cargar presión: ' + err.message, 'danger');
+      }
+    }
+
+    async function addPressure() {
+      const systolic = parseInt($('#systolicInput').value);
+      const diastolic = parseInt($('#diastolicInput').value);
+      const notes = $('#pressureNotes').value;
+      if (!systolic || !diastolic || systolic < 40 || systolic > 250 || diastolic < 40 || diastolic > 250) {
+        showToast('Presión inválida (40–250 mmHg)', 'warning');
+        return;
+      }
+      try {
+        await apiFetch('/api/v1/pressures/', {
+          method: 'POST',
+          body: JSON.stringify({
+            datetime: new Date().toISOString(),
+            systolic_mmhg: systolic,
+            diastolic_mmhg: diastolic,
+            notes: notes || null
+          })
+        });
+        $('#systolicInput').value = '';
+        $('#diastolicInput').value = '';
+        $('#pressureNotes').value = '';
+        showToast('Presión guardada', 'success');
+        loadPressures();
+      } catch (err) {
+        showToast('Error al guardar presión: ' + err.message, 'danger');
+      }
+    }
+
+    async function deletePressure(id) {
+      if (!await showConfirm('¿Borrar esta presión?')) return;
+      try {
+        await apiFetch(`/api/v1/pressures/${id}`, { method: 'DELETE' });
+        showToast('Presión borrada', 'success');
+        loadPressures();
+      } catch (err) {
+        showToast('Error al borrar: ' + err.message, 'danger');
+      }
+    }
+
+    async function loadHbA1c() {
+      try {
+        const res = await apiFetch('/api/v1/hba1c/');
+        const readings = res || [];
+        const historyEl = $('#hba1cHistory');
+        historyEl.innerHTML = readings.length > 0
+          ? '<table>' + readings.map(r => `
+            <tr>
+              <td>${new Date(r.datetime).toLocaleString()}</td>
+              <td>${r.value_percent}%</td>
+              <td>${r.notes || '—'}</td>
+              <td><button onclick="deleteHbA1c(${r.id})" class="delete-btn">Borrar</button></td>
+            </tr>`).join('') + '</table>'
+          : '<p>Sin registros.</p>';
+      } catch (err) {
+        showToast('Error al cargar HbA1c: ' + err.message, 'danger');
+      }
+    }
+
+    async function addHbA1c() {
+      const value_percent = parseFloat($('#hba1cInput').value);
+      const notes = $('#hba1cNotes').value;
+      if (!value_percent || value_percent < 3 || value_percent > 15) {
+        showToast('HbA1c inválido (3–15%)', 'warning');
+        return;
+      }
+      try {
+        await apiFetch('/api/v1/hba1c/', {
+          method: 'POST',
+          body: JSON.stringify({
+            datetime: new Date().toISOString(),
+            value_percent: value_percent,
+            notes: notes || null
+          })
+        });
+        $('#hba1cInput').value = '';
+        $('#hba1cNotes').value = '';
+        showToast('HbA1c guardado', 'success');
+        loadHbA1c();
+      } catch (err) {
+        showToast('Error al guardar HbA1c: ' + err.message, 'danger');
+      }
+    }
+
+    async function deleteHbA1c(id) {
+      if (!await showConfirm('¿Borrar este HbA1c?')) return;
+      try {
+        await apiFetch(`/api/v1/hba1c/${id}`, { method: 'DELETE' });
+        showToast('HbA1c borrado', 'success');
+        loadHbA1c();
+      } catch (err) {
+        showToast('Error al borrar: ' + err.message, 'danger');
+      }
+    }
+
+    // Call on app init
+    async function loadAllVitals() {
+      loadWeights();
+      loadPressures();
+      loadHbA1c();
     }
 
     async function loadLatestMealPlan() {
