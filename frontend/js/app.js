@@ -387,14 +387,19 @@
       const provider = $('#configProvider').value;
       const modelInput = $('#configModel');
       const urlInput = $('#configBaseUrl');
-      
+
       if (provider === 'kimi') {
-        if (!modelInput.value || modelInput.value === 'openrouter/auto') {
+        if (!modelInput.value || modelInput.value === 'openrouter/auto' || modelInput.value === 'deepseek-chat') {
           modelInput.value = 'kimi-k2.6';
         }
         urlInput.placeholder = 'https://api.moonshot.cn/v1';
+      } else if (provider === 'deepseek') {
+        if (!modelInput.value || modelInput.value === 'openrouter/auto' || modelInput.value === 'kimi-k2.6') {
+          modelInput.value = 'deepseek-chat';
+        }
+        urlInput.placeholder = 'https://api.deepseek.com/v1';
       } else {
-        if (!modelInput.value || modelInput.value === 'kimi-k2.6') {
+        if (!modelInput.value || modelInput.value === 'kimi-k2.6' || modelInput.value === 'deepseek-chat') {
           modelInput.value = 'openrouter/auto';
         }
         urlInput.placeholder = 'https://openrouter.ai/api/v1';
