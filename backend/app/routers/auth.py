@@ -100,66 +100,42 @@ async def test_ai_connection(
     current_user: User = Depends(get_current_user)
 ):
     """Test AI provider connection with custom settings before saving."""
+    from app.services.ai_providers import PROVIDER_DEFAULTS, _build_openai_payload, _build_google_payload, _parse_google_response
+
     provider = test_in.ai_provider
     api_key = test_in.ai_api_key
     model = test_in.ai_model
-    
-    # Resolve base URL
-    base_url = test_in.ai_base_url
-    if not base_url:
-        if provider == "kimi":
-            base_url = "https://api.moonshot.cn/v1"
-        else:
-            base_url = "https://openrouter.ai/api/v1"
-            
-    headers = {
-        "Authorization": f"Bearer {api_key}",
-        "Content-Type": "application/json",
-        "HTTP-Referer": "https://azucar.aeisoftware.com",
-        "X-Title": "Azucar Control"
-    }
-    
-    payload = {
-        "model": model,
-        "messages": [
-            {"role": "user", "content": "Hola"}
-        ],
-        "max_tokens": 10
-    }
-    
+    base_url = test_in.ai_base_url or PROVIDER_DEFAULTS.get(provider, {}).get("url", "https://openrouter.ai/api/v1")
+    messages = [{"role": "user", "content": "Hola"}]
+
     try:
-        async with httpx.AsyncClient(timeout=15.0) as client:
-            response = await client.post(
-                f"{base_url.rstrip('/')}/chat/completions",
-                headers=headers,
-                json=payload
-            )
-            
-            if response.status_code == 200:
-                res_data = response.json()
-                try:
-                    content = res_data["choices"][0]["message"]["content"]
-                    return {"success": True, "message": "Conexión exitosa", "response": content}
-                except (KeyError, IndexError) as parse_err:
-                    return {
-                        "success": False,
-                        "message": "Respuesta en formato inesperado",
-                        "details": f"Error parseando: {parse_err}. Respuesta: {res_data}"
-                    }
-            else:
-                try:
-                    error_detail = response.json()
-                except Exception:
-                    error_detail = response.text
-                return {
-                    "success": False,
-                    "message": f"Error del proveedor (HTTP {response.status_code})",
-                    "details": error_detail
-                }
+        if provider == "google":
+            headers = {"Content-Type": "application/json", "X-goog-api-key": api_key}
+            payload = _build_google_payload(model, messages, json_mode=False)
+            url = f"{base_url.rstrip('/')}/models/{model}:generateContent?key={api_key}"
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                resp = await client.post(url, headers=headers, json=payload)
+                if resp.is_success:
+                    content = _parse_google_response(resp.json())
+                    return {"success": True, "message": "Conexion exitosa", "response": content}
+                else:
+                    return {"success": False, "message": f"Error HTTP {resp.status_code}", "details": resp.text[:300]}
+        else:
+            headers = {
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
+                "HTTP-Referer": "https://azucar.aeisoftware.com",
+                "X-Title": "Azucar Control"
+            }
+            payload = _build_openai_payload(model, messages, json_mode=False)
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                resp = await client.post(f"{base_url.rstrip('/')}/chat/completions", headers=headers, json=payload)
+                if resp.is_success:
+                    content = resp.json()["choices"][0]["message"]["content"]
+                    return {"success": True, "message": "Conexion exitosa", "response": content}
+                else:
+                    return {"success": False, "message": f"Error HTTP {resp.status_code}", "details": resp.text[:300]}
     except Exception as ex:
-        return {
-            "success": False,
-            "message": "Error al conectar con el servidor",
-            "details": str(ex)
-        }
+        return {"success": False, "message": f"Error de conexion: {ex}"}
+
 
