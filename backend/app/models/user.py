@@ -21,6 +21,9 @@ class User(Base):
     ai_model: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     ai_base_url: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
 
+    # Vitals
+    height: Mapped[Optional[int]] = mapped_column(nullable=True)
+
     # Relationships
     glucose_readings: Mapped[List["GlucoseReading"]] = relationship(back_populates="user", cascade="all, delete-orphan")
     fasting_sessions: Mapped[List["FastingSession"]] = relationship(back_populates="user", cascade="all, delete-orphan")
