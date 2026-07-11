@@ -1005,10 +1005,13 @@
       padding: 20px 10px 10px;
       border-bottom: 1px solid var(--border-glass);
       gap: 8px;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
     }
 
     .chart-bar-wrap {
-      flex: 1;
+      flex: 0 0 auto;
+      min-width: 44px;
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -1018,6 +1021,7 @@
     .chart-bar {
       width: 100%;
       max-width: 40px;
+      min-width: 28px;
       border-top-left-radius: 4px;
       border-top-right-radius: 4px;
       background: var(--accent-indigo);
@@ -1031,7 +1035,7 @@
     }
 
     .chart-bar-label {
-      font-size: 0.6rem;
+      font-size: 0.65rem;
       color: var(--text-muted);
       text-align: center;
       white-space: nowrap;
