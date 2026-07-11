@@ -2,8 +2,11 @@ from sqlalchemy import String, Boolean, DateTime
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 from datetime import datetime
-from typing import List, Optional
+from typing import List, Optional, TYPE_CHECKING
 from app.database import Base
+
+if TYPE_CHECKING:
+    from app.models.hba1c import HbA1c
 
 class User(Base):
     __tablename__ = "users"
@@ -35,6 +38,7 @@ class User(Base):
     medications: Mapped[List["Medication"]] = relationship(back_populates="user", cascade="all, delete-orphan")
     weights: Mapped[List["Weight"]] = relationship(back_populates="user", cascade="all, delete-orphan")
     pressures: Mapped[List["Pressure"]] = relationship(back_populates="user", cascade="all, delete-orphan")
+    hba1c_readings: Mapped[List["HbA1c"]] = relationship(back_populates="user", cascade="all, delete-orphan")
 
     @property
     def has_ai_key(self) -> bool:
