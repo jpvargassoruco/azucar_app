@@ -143,9 +143,11 @@ Si crease modelo nuevo (e.g. `backend/app/models/newmodel.py`):
 1. Cambios no fueron pushed/pulled
 2. Migration no aplicada (tabla no existe)
 3. Router no registrado en main.py
-4. Caché del navegador
+4. Backend image stale (no tiene código nuevo)
+5. Caché del navegador
 
 **Soluciones:**
+
 ```bash
 # VPS: verificar cambios están
 git log --oneline -3
@@ -157,9 +159,25 @@ docker exec azucar-backend alembic current
 # Verificar router está cargado
 docker logs azucar-backend | tail -50
 
+# **CRITICAL: Rebuild backend image si código nuevo no aparece en container**
+cd /home/ubuntu/azucar_app
+git pull
+docker compose pull backend 2>/dev/null || true  # Pull if on registry
+docker build -t azucar_app-backend:latest ./backend --target api
+docker compose up -d backend
+sleep 5
+
+# Verify files in container
+docker exec azucar-backend ls /app/app/routers/weight.py
+
 # Cliente: hard refresh
 Ctrl+Shift+R
 ```
+
+**¿Por qué rebuild de imagen?**
+Backend es built, no volume-mounted (no como frontend).
+`docker restart` solo reinicia el container con imagen vieja.
+Cambios en código requieren `docker build` + restart.
 
 ### Error: Service Worker corrupted
 
