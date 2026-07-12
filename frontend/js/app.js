@@ -2372,48 +2372,6 @@
       });
     }
 
-    // ===== FORCE UPDATE =====
-    window.forceUpdateApp = async function() {
-      const btn = $('#btnUpdateApp');
-      if (!btn) return;
-      const origText = btn.textContent;
-      btn.textContent = '⏳ Actualizando...';
-      btn.disabled = true;
-
-      try {
-        // Tell service worker to update and clear caches
-        if ('serviceWorker' in navigator) {
-          const reg = await navigator.serviceWorker.ready;
-          if (reg.waiting) {
-            reg.waiting.postMessage({ type: 'FORCE_UPDATE' });
-          } else if (reg.active) {
-            reg.active.postMessage({ type: 'FORCE_UPDATE' });
-          }
-          // Also unregister to be safe
-          const registrations = await navigator.serviceWorker.getRegistrations();
-          for (const r of registrations) {
-            await r.unregister();
-          }
-        }
-
-        // Clear all caches directly
-        if ('caches' in window) {
-          const keys = await caches.keys();
-          await Promise.all(keys.map(k => caches.delete(k)));
-        }
-
-        // Hard reload after short delay (bypass HTTP cache)
-        setTimeout(() => {
-          window.location.reload(true);
-        }, 300);
-      } catch (err) {
-        btn.textContent = origText;
-        btn.disabled = false;
-        // Fallback: just reload
-        window.location.reload(true);
-      }
-    };
-
     // ===== ZOOM CONTROLS =====
     let currentZoom = 100;
     const ZOOM_STEP = 10;
