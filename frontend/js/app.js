@@ -2268,7 +2268,8 @@
         btn.style.color = 'var(--text-muted)';
         
         // Trigger a test notification
-        await apiFetch('/api/v1/notifications/test', { method: 'POST' }).catch(() => {});
+        // body '{}' required: the hosting WAF (ModSecurity) rejects empty-body POSTs with 412
+        await apiFetch('/api/v1/notifications/test', { method: 'POST', body: '{}' }).catch(() => {});
       } catch (err) {
         console.error(err);
         showToast('Error al activar notificaciones Push.', 'danger');
