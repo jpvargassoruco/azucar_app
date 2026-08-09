@@ -16,9 +16,11 @@ date_default_timezone_set('UTC');
 $app = AppFactory::create();
 $app->setBasePath('/api');
 
+// Slim middleware is LIFO: TrailingSlash must be added AFTER routing so it
+// executes BEFORE routing resolves the path.
 $app->addBodyParsingMiddleware();
-$app->add(new TrailingSlash());
 $app->addRoutingMiddleware();
+$app->add(new TrailingSlash());
 
 $errorMiddleware = $app->addErrorMiddleware(false, true, false);
 $errorMiddleware->setDefaultErrorHandler(new ErrorHandler());
