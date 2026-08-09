@@ -19,21 +19,23 @@
 
 ## 2 — Application code
 
-Layout on the host (app code outside the docroot when possible):
+**Actual CloudLogin layout (verified 2026-08-09):** the web server's chroot only
+exposes the vhost docroot itself, so the app MUST live inside it:
 
 ```
-~/app/                      <- php-backend/ contents (src, bin, vendor, .env, logs)
-~/public_html/azucar/       <- docroot: frontend files + api/ + uploads/ + .htaccess
+~/www/azucar.redesk.us/           <- docroot: frontend files + api/ + uploads/ + .htaccess
+~/www/azucar.redesk.us/app/       <- src, bin, vendor, sql, .env, logs
+~/www/azucar.redesk.us/app/.htaccess  <- "Require all denied"  (CRITICAL)
 ```
 
-1. SSH in. Upload `php-backend/` to `~/app/` (rsync/scp/git).
-2. `cd ~/app && composer install --no-dev --optimize-autoloader`
-   (if composer is missing: `php -r "copy('https://getcomposer.org/installer','c.php');" && php c.php`)
-3. Copy `frontend/` files into the docroot — **exclude** `nginx.conf` and `Dockerfile`.
-4. Copy from `php-backend/public/` into the docroot: `.htaccess`, `api/` (both files),
-   `uploads/.htaccess`.
-5. If `~/app` is not possible, use `docroot/app/` and add an `.htaccess` there with
-   `Require all denied` (api/index.php auto-detects both layouts).
+1. Build `vendor/` locally (`composer install --no-dev --optimize-autoloader`) and
+   rsync it with the code — the host's `composer` wrapper is tied to the ancient
+   default PHP. Always invoke PHP as `/usr/local/php8.4/bin/php` on the host.
+2. rsync `php-backend/{src,vendor,bin,sql,composer.*}` → `docroot/app/`.
+3. rsync `frontend/` into the docroot — **exclude** `nginx.conf` and `Dockerfile`.
+4. rsync `php-backend/public/` into the docroot (`.htaccess`, `api/`, `uploads/.htaccess`).
+5. `printf "Require all denied\n" > docroot/app/.htaccess` and verify
+   `curl https://azucar.redesk.us/app/.env` returns 403.
 
 ## 3 — Configuration
 
@@ -58,10 +60,11 @@ Create `~/app/.env` from `.env.example` (`chmod 600 .env`):
 
 ## 5 — Cron
 
-Panel → Advanced → Cron Jobs, every minute:
+Panel → Advanced → Cron Jobs, every minute (`crontab` over SSH is blocked; the
+8.4 binary must be explicit):
 
 ```
-* * * * * php /home/<user>/app/bin/cron_reminders.php >> /home/<user>/app/logs/cron.log 2>&1
+* * * * * /usr/local/php8.4/bin/php /home/www/azucar.redesk.us/app/bin/cron_reminders.php >> /home/www/azucar.redesk.us/app/logs/cron.log 2>&1
 ```
 
 ## 6 — Smoke test
