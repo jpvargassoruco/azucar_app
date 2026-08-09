@@ -28,12 +28,9 @@ final class Respond
         return $response->withStatus(204);
     }
 
-    /** MySQL DATETIME ("Y-m-d H:i:s") -> ISO-8601 ("Y-m-d\TH:i:s"). Null-safe. */
+    /** MySQL DATETIME (UTC) -> "Y-m-d\TH:i:sZ" (matches pydantic's tz-aware output). */
     public static function iso(?string $mysqlDatetime): ?string
     {
-        if ($mysqlDatetime === null) {
-            return null;
-        }
-        return str_replace(' ', 'T', $mysqlDatetime);
+        return Dt::out($mysqlDatetime);
     }
 }
