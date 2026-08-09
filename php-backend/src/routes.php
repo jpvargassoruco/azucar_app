@@ -9,6 +9,7 @@ use Azucar\Controllers\GlucoseController;
 use Azucar\Controllers\HabitController;
 use Azucar\Controllers\Hba1cController;
 use Azucar\Controllers\MedicationController;
+use Azucar\Controllers\NotificationController;
 use Azucar\Controllers\PressureController;
 use Azucar\Controllers\WeightController;
 use Azucar\Middleware\AuthMiddleware;
@@ -79,6 +80,12 @@ return static function (App $app): void {
             $g->put('/{id:[0-9]+}', [AlarmController::class, 'update']);
             $g->delete('/{id:[0-9]+}', [AlarmController::class, 'delete']);
         })->add($auth);
+
+        $v1->group('/notifications', function (RouteCollectorProxy $g) use ($auth): void {
+            $g->get('/key', [NotificationController::class, 'key']);
+            $g->post('/subscribe', [NotificationController::class, 'subscribe'])->add($auth);
+            $g->post('/test', [NotificationController::class, 'test'])->add($auth);
+        });
 
         $v1->group('/medications', function (RouteCollectorProxy $g): void {
             $g->get('', [MedicationController::class, 'list']);
