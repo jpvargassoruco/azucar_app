@@ -2,12 +2,15 @@
 
 declare(strict_types=1);
 
+use Azucar\Controllers\AiController;
 use Azucar\Controllers\AlarmController;
 use Azucar\Controllers\AuthController;
 use Azucar\Controllers\FastingController;
 use Azucar\Controllers\GlucoseController;
 use Azucar\Controllers\HabitController;
 use Azucar\Controllers\Hba1cController;
+use Azucar\Controllers\MealController;
+use Azucar\Controllers\MealPlanController;
 use Azucar\Controllers\MedicationController;
 use Azucar\Controllers\NotificationController;
 use Azucar\Controllers\PressureController;
@@ -33,8 +36,23 @@ return static function (App $app): void {
             $g->post('/login', [AuthController::class, 'login']);
             $g->get('/me', [AuthController::class, 'me'])->add($auth);
             $g->put('/me/ai-settings', [AuthController::class, 'updateAiSettings'])->add($auth);
-            // POST /auth/test-ai registered in Phase 4 (AI providers)
+            $g->post('/test-ai', [AiController::class, 'testAi'])->add($auth);
         });
+
+        $v1->group('/meals', function (RouteCollectorProxy $g): void {
+            $g->get('', [MealController::class, 'list']);
+            $g->post('/upload', [MealController::class, 'upload']);
+            $g->put('/{id:[0-9]+}', [MealController::class, 'update']);
+            $g->post('/{id:[0-9]+}/correct', [MealController::class, 'correct']);
+            $g->delete('/{id:[0-9]+}', [MealController::class, 'delete']);
+        })->add($auth);
+
+        $v1->group('/meal-plan', function (RouteCollectorProxy $g): void {
+            $g->post('/generate', [MealPlanController::class, 'generate']);
+            $g->get('/latest', [MealPlanController::class, 'latest']);
+        })->add($auth);
+
+        $v1->post('/ai/chat', [AiController::class, 'chat'])->add($auth);
 
         $v1->group('/glucose', function (RouteCollectorProxy $g): void {
             $g->get('', [GlucoseController::class, 'list']);
