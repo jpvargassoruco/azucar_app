@@ -6,6 +6,7 @@ use Azucar\Controllers\AiController;
 use Azucar\Controllers\AlarmController;
 use Azucar\Controllers\AuthController;
 use Azucar\Controllers\FastingController;
+use Azucar\Controllers\FhirController;
 use Azucar\Controllers\GlucoseController;
 use Azucar\Controllers\HabitController;
 use Azucar\Controllers\Hba1cController;
@@ -53,6 +54,15 @@ return static function (App $app): void {
         })->add($auth);
 
         $v1->post('/ai/chat', [AiController::class, 'chat'])->add($auth);
+
+        $v1->group('/fhir', function (RouteCollectorProxy $g): void {
+            $g->get('/Patient', [FhirController::class, 'patient']);
+            $g->get('/Observation', [FhirController::class, 'observations']);
+            $g->get('/NutritionIntake', [FhirController::class, 'nutritionIntakes']);
+            $g->get('/MedicationStatement', [FhirController::class, 'medicationStatements']);
+            $g->get('/Bundle', [FhirController::class, 'bundle']);
+            $g->get('/Bundle/export', [FhirController::class, 'export']);
+        })->add($auth);
 
         $v1->group('/glucose', function (RouteCollectorProxy $g): void {
             $g->get('', [GlucoseController::class, 'list']);
