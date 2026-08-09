@@ -1,0 +1,11 @@
+# Meal thumbnails: long cache (immutable unique filenames), never execute code
+<IfModule mod_headers.c>
+    Header set Cache-Control "public, max-age=2592000, no-transform"
+</IfModule>
+
+# Disable any script execution in this directory
+RemoveHandler .php .phtml .php3 .php4 .php5 .php7 .phps
+RemoveType .php .phtml
+<IfModule mod_php.c>
+    php_flag engine off
+</IfModule>
