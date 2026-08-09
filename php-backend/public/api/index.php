@@ -7,7 +7,8 @@ declare(strict_types=1);
 $bootstrap = null;
 foreach ([
     __DIR__ . '/../../src/bootstrap.php',   // repo layout (local dev)
-    dirname(__DIR__, 3) . '/app/src/bootstrap.php', // hosting: ~/app next to docroot
+    dirname(__DIR__, 3) . '/app-azucar/src/bootstrap.php', // CloudLogin: /home/app-azucar
+    dirname(__DIR__, 3) . '/app/src/bootstrap.php', // generic: ~/app next to docroot
 ] as $candidate) {
     if (is_file($candidate)) {
         $bootstrap = $candidate;
