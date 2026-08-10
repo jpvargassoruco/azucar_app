@@ -22,7 +22,7 @@ final class AiClient
         'openrouter' => ['url' => 'https://openrouter.ai/api/v1', 'model' => 'openrouter/auto'],
         'deepseek' => ['url' => 'https://api.deepseek.com/v1', 'model' => 'deepseek-chat'],
         'nvidia' => ['url' => 'https://integrate.api.nvidia.com/v1', 'model' => 'nvidia/nemotron-3-super-120b-a12b'],
-        'kimi' => ['url' => 'https://api.moonshot.ai/v1', 'model' => 'kimi-latest'],
+        'kimi' => ['url' => 'https://api.moonshot.ai/v1', 'model' => 'kimi-k3'],
         'anthropic' => ['url' => 'https://api.anthropic.com', 'model' => 'claude-opus-5'],
     ];
 
@@ -91,6 +91,9 @@ final class AiClient
         return match ($config['provider']) {
             'google' => (new GoogleProvider())->chat($config, $messages, $jsonMode, $timeout),
             'anthropic' => (new AnthropicProvider())->chat($config, $messages, $jsonMode, $timeout),
+            // Kimi reasoning models (k3) reject any temperature other than the
+            // server default — omit the parameter entirely for this provider
+            'kimi' => (new OpenAiCompatProvider())->chat($config, $messages, $jsonMode, null, $timeout),
             default => (new OpenAiCompatProvider())->chat($config, $messages, $jsonMode, $temperature, $timeout),
         };
     }

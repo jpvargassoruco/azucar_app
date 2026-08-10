@@ -9,13 +9,15 @@ use GuzzleHttp\Client;
 /** OpenRouter, DeepSeek, NVIDIA, Kimi (Moonshot) — POST {base}/chat/completions. */
 final class OpenAiCompatProvider
 {
-    public function chat(array $config, array $messages, bool $jsonMode, float $temperature, int $timeout): string
+    public function chat(array $config, array $messages, bool $jsonMode, ?float $temperature, int $timeout): string
     {
         $payload = [
             'model' => $config['model'],
             'messages' => $messages,
-            'temperature' => $temperature,
         ];
+        if ($temperature !== null) {
+            $payload['temperature'] = $temperature;
+        }
         if ($jsonMode) {
             $payload['response_format'] = ['type' => 'json_object'];
         }
