@@ -1,0 +1,174 @@
+#!/usr/bin/env python3
+"""
+Transform the Postgres CSV export into MySQL INSERT statements (data.sql).
+
+Usage:
+    python3 transform.py <csv_dir> [--app-key APP_KEY] [--fernet-key OLD_KEY] > data.sql
+
+- Preserves primary keys (AUTO_INCREMENT self-adjusts).
+- Booleans t/f -> 1/0; timestamptz -> UTC naive DATETIME.
+- JSON columns pass through as strings.
+- push_subscriptions is SKIPPED: the new origin (azucar.redesk.us)
+  invalidates existing browser subscriptions.
+- users.ai_api_key: decrypted with the legacy Fernet key when present
+  (needs `pip install cryptography`), then re-encrypted with libsodium
+  secretbox under APP_KEY (needs `pip install pynacl`) in the same
+  "sbx1:" format the PHP backend uses. Without --app-key (or pynacl),
+  keys are written as plaintext, which the PHP backend also accepts.
+"""
+
+import argparse
+import base64
+import csv
+import hashlib
+import sys
+from datetime import datetime, timezone
+from pathlib import Path
+
+TABLES = [
+    # (table, columns, boolean columns, datetime columns)
+    ("users",
+     ["id", "email", "name", "hashed_password", "is_active", "created_at",
+      "ai_provider", "ai_api_key", "ai_model", "ai_base_url", "height"],
+     {"is_active"}, {"created_at"}),
+    ("glucose_readings",
+     ["id", "user_id", "datetime", "value_mgdl", "condition", "notes"],
+     set(), {"datetime"}),
+    ("fasting_sessions",
+     ["id", "user_id", "start_time", "end_time", "protocol", "completed"],
+     {"completed"}, {"start_time", "end_time"}),
+    ("habit_logs",
+     ["id", "user_id", "date", "habit_key", "completed"],
+     {"completed"}, set()),
+    ("alarms",
+     ["id", "user_id", "type", "config_time", "is_active"],
+     {"is_active"}, set()),
+    ("meal_entries",
+     ["id", "user_id", "datetime", "photo_path", "thumbnail_path", "notes", "ai_analysis"],
+     set(), {"datetime"}),
+    ("meal_plans",
+     ["id", "user_id", "created_at", "preferences", "plan_data"],
+     set(), {"created_at"}),
+    ("medications",
+     ["id", "user_id", "name", "kind", "dosage", "times", "days_of_week", "is_active", "notes"],
+     {"is_active"}, set()),
+    ("medication_logs",
+     ["id", "medication_id", "user_id", "date", "scheduled_time", "status", "marked_at"],
+     set(), {"marked_at"}),
+    ("weights",
+     ["id", "user_id", "datetime", "weight_kg", "notes"],
+     set(), {"datetime"}),
+    ("blood_pressures",
+     ["id", "user_id", "datetime", "systolic_mmhg", "diastolic_mmhg", "notes"],
+     set(), {"datetime"}),
+    ("hba1c_readings",
+     ["id", "user_id", "datetime", "value_percent", "notes"],
+     set(), {"datetime"}),
+]
+
+
+def to_mysql_datetime(value: str) -> str:
+    v = value.strip()
+    if not v:
+        return ""
+    # Postgres CSV emits e.g. "2026-06-07 12:34:56.789+00" or with named offsets
+    v = v.replace("T", " ")
+    dt = datetime.fromisoformat(v)
+    if dt.tzinfo is not None:
+        dt = dt.astimezone(timezone.utc).replace(tzinfo=None)
+    return dt.strftime("%Y-%m-%d %H:%M:%S")
+
+
+def sql_escape(value: str) -> str:
+    return value.replace("\\", "\\\\").replace("'", "\\'").replace("\n", "\\n").replace("\r", "\\r")
+
+
+def make_key_reencryptor(app_key: str | None, fernet_key: str | None):
+    decrypt = None
+    if fernet_key:
+        from cryptography.fernet import Fernet  # pip install cryptography
+        digest = hashlib.sha256(fernet_key.encode()).digest()
+        f = Fernet(base64.urlsafe_b64encode(digest))
+
+        def decrypt(stored: str) -> str:
+            if stored.startswith("gAAAAA"):
+                try:
+                    return f.decrypt(stored.encode()).decode()
+                except Exception:
+                    return stored
+            return stored
+
+    encrypt = None
+    if app_key:
+        try:
+            from nacl.secret import SecretBox  # pip install pynacl
+            from nacl.utils import random as nacl_random
+
+            box = SecretBox(hashlib.sha256(app_key.encode()).digest())
+
+            def encrypt(plain: str) -> str:
+                nonce = nacl_random(SecretBox.NONCE_SIZE)
+                sealed = box.encrypt(plain.encode(), nonce)  # nonce + ciphertext
+                return "sbx1:" + base64.b64encode(bytes(sealed)).decode()
+        except ImportError:
+            print("-- WARNING: pynacl not installed; ai_api_key stored as plaintext", file=sys.stderr)
+
+    def reencrypt(stored: str) -> str:
+        if not stored:
+            return stored
+        plain = decrypt(stored) if decrypt else stored
+        return encrypt(plain) if encrypt else plain
+
+    return reencrypt
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("csv_dir", type=Path)
+    parser.add_argument("--app-key", help="New APP_KEY for sodium re-encryption of ai_api_key")
+    parser.add_argument("--fernet-key", help="Legacy API_KEY_ENCRYPTION_KEY (rarely set)")
+    args = parser.parse_args()
+
+    reencrypt_key = make_key_reencryptor(args.app_key, args.fernet_key)
+
+    print("-- Generated by transform.py — import AFTER schema.sql")
+    print("SET NAMES utf8mb4;")
+    print("SET FOREIGN_KEY_CHECKS = 0;")
+    print("START TRANSACTION;")
+
+    for table, columns, bool_cols, dt_cols in TABLES:
+        csv_path = args.csv_dir / f"{table}.csv"
+        if not csv_path.exists():
+            print(f"-- {table}: CSV not found, skipped", file=sys.stderr)
+            continue
+
+        with csv_path.open(newline="", encoding="utf-8") as fh:
+            reader = csv.DictReader(fh)
+            rows = list(reader)
+
+        print(f"\n-- {table}: {len(rows)} rows")
+        for row in rows:
+            values = []
+            for col in columns:
+                raw = row.get(col, "")
+                if raw == "":
+                    values.append("NULL")
+                elif col in bool_cols:
+                    values.append("1" if raw in ("t", "true", "1") else "0")
+                elif col in dt_cols:
+                    values.append(f"'{to_mysql_datetime(raw)}'")
+                else:
+                    if table == "users" and col == "ai_api_key":
+                        raw = reencrypt_key(raw)
+                    values.append(f"'{sql_escape(raw)}'")
+            col_list = ", ".join(f"`{c}`" for c in columns)
+            print(f"INSERT INTO {table} ({col_list}) VALUES ({', '.join(values)});")
+
+    print("\nCOMMIT;")
+    print("SET FOREIGN_KEY_CHECKS = 1;")
+    print("-- push_subscriptions intentionally skipped (new origin invalidates them)",
+          file=sys.stderr)
+
+
+if __name__ == "__main__":
+    main()

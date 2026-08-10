@@ -1,0 +1,58 @@
+# azucar - docroot .htaccess (replaces frontend/nginx.conf on shared hosting)
+
+# --- Authorization header must reach PHP (CGI/FastCGI strips it) ---
+<IfModule mod_setenvif.c>
+    SetEnvIf Authorization "(.*)" HTTP_AUTHORIZATION=$1
+</IfModule>
+CGIPassAuth On
+
+RewriteEngine On
+RewriteCond %{HTTP:Authorization} .
+RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+
+# --- SPA fallback (never for /api or /uploads or real files) ---
+RewriteCond %{REQUEST_URI} !^/(api|uploads)/
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule . /index.html [L]
+
+# --- Upload size cap (mirrors nginx client_max_body_size 20M) ---
+<IfModule mod_php.c>
+    php_value upload_max_filesize 20M
+    php_value post_max_size 20M
+</IfModule>
+LimitRequestBody 20971520
+
+# --- Caching (mirrors nginx.conf) ---
+<IfModule mod_headers.c>
+    # Never cache the service worker or app entry files
+    <FilesMatch "^(sw\.js|index\.html|manifest\.json)$">
+        Header set Cache-Control "no-cache, no-store, must-revalidate"
+        Header set Pragma "no-cache"
+        Header set Expires "0"
+    </FilesMatch>
+
+    # Short cache for the rest of js/css
+    <FilesMatch "\.(js|css)$">
+        Header set Cache-Control "public, max-age=300"
+    </FilesMatch>
+
+    # --- Security headers ---
+    Header set X-Frame-Options "DENY"
+    Header set X-Content-Type-Options "nosniff"
+    Header set Referrer-Policy "strict-origin-when-cross-origin"
+    Header set Permissions-Policy "camera=(), microphone=(), geolocation=()"
+</IfModule>
+
+# sw.js FilesMatch above outranks the js/css block only if it comes later in
+# some Apache builds; enforce explicitly:
+<IfModule mod_headers.c>
+    <Files "sw.js">
+        Header set Cache-Control "no-cache, no-store, must-revalidate"
+    </Files>
+</IfModule>
+
+# --- Compression ---
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/html text/css text/plain application/javascript application/json application/manifest+json image/svg+xml
+</IfModule>
