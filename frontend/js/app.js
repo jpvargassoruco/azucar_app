@@ -196,10 +196,17 @@
         $('#userNameDisplay').textContent = user.name;
         $('#userBanner').style.display = 'flex';
         
-        // Set date defaults in metrics and fasting forms
+        // Set date defaults in metrics, vitals and fasting forms
         const now = new Date();
+        const nowTime = `${padZero(now.getHours())}:${padZero(now.getMinutes())}`;
         $('#metricDate').value = getTodayStr();
-        $('#metricTime').value = `${padZero(now.getHours())}:${padZero(now.getMinutes())}`;
+        $('#metricTime').value = nowTime;
+        for (const prefix of ['weight', 'pressure', 'hba1c']) {
+          const d = $(`#${prefix}Date`);
+          const t = $(`#${prefix}Time`);
+          if (d) d.value = getTodayStr();
+          if (t) t.value = nowTime;
+        }
         
         $('#fastingStartDate').value = getTodayStr();
         $('#fastingStartTime').value = `${padZero(now.getHours())}:${padZero(now.getMinutes())}`;
@@ -939,18 +946,30 @@
       }
     }
 
-    async function addWeight() {
+    // Shared by the weight/pressure/hba1c forms: combine the local date+time
+    // inputs into an ISO string (same behavior as the glucose form)
+    function vitalsDatetime(prefix) {
+      const dateVal = $(`#${prefix}Date`)?.value;
+      const timeVal = $(`#${prefix}Time`)?.value;
+      if (!dateVal || !timeVal) return null;
+      return new Date(`${dateVal}T${timeVal}:00`).toISOString();
+    }
+
+    async function addWeight(e) {
+      if (e) e.preventDefault();
       const weight_kg = parseFloat($('#weightInput').value);
       const notes = $('#weightNotes').value;
+      const dt = vitalsDatetime('weight');
       if (!weight_kg || weight_kg <= 0 || weight_kg > 300) {
         showToast('Peso inválido (0–300 kg)', 'warning');
         return;
       }
+      if (!dt) { showToast('Completa fecha y hora', 'warning'); return; }
       try {
         await apiFetch('/api/v1/weights/', {
           method: 'POST',
           body: JSON.stringify({
-            datetime: new Date().toISOString(),
+            datetime: dt,
             weight_kg: weight_kg,
             notes: notes || null
           })
@@ -994,19 +1013,22 @@
       }
     }
 
-    async function addPressure() {
+    async function addPressure(e) {
+      if (e) e.preventDefault();
       const systolic = parseInt($('#systolicInput').value);
       const diastolic = parseInt($('#diastolicInput').value);
       const notes = $('#pressureNotes').value;
+      const dt = vitalsDatetime('pressure');
       if (!systolic || !diastolic || systolic < 40 || systolic > 250 || diastolic < 40 || diastolic > 250) {
         showToast('Presión inválida (40–250 mmHg)', 'warning');
         return;
       }
+      if (!dt) { showToast('Completa fecha y hora', 'warning'); return; }
       try {
         await apiFetch('/api/v1/pressures/', {
           method: 'POST',
           body: JSON.stringify({
-            datetime: new Date().toISOString(),
+            datetime: dt,
             systolic_mmhg: systolic,
             diastolic_mmhg: diastolic,
             notes: notes || null
@@ -1052,18 +1074,21 @@
       }
     }
 
-    async function addHbA1c() {
+    async function addHbA1c(e) {
+      if (e) e.preventDefault();
       const value_percent = parseFloat($('#hba1cInput').value);
       const notes = $('#hba1cNotes').value;
+      const dt = vitalsDatetime('hba1c');
       if (!value_percent || value_percent < 3 || value_percent > 15) {
         showToast('HbA1c inválido (3–15%)', 'warning');
         return;
       }
+      if (!dt) { showToast('Completa fecha y hora', 'warning'); return; }
       try {
         await apiFetch('/api/v1/hba1c/', {
           method: 'POST',
           body: JSON.stringify({
-            datetime: new Date().toISOString(),
+            datetime: dt,
             value_percent: value_percent,
             notes: notes || null
           })
